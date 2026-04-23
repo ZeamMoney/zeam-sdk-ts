@@ -1,0 +1,121 @@
+{
+  "name": "@zeammoney/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the Zeam Platform API Gateway",
+  "license": "Apache-2.0",
+  "homepage": "https://sdk.zeam.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZeamMoney/zeam-sdk-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ZeamMoney/zeam-sdk-ts/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js",
+      "require": "./dist/auth/index.cjs"
+    },
+    "./stellar": {
+      "types": "./dist/stellar/index.d.ts",
+      "import": "./dist/stellar/index.js",
+      "require": "./dist/stellar/index.cjs"
+    },
+    "./recipes": {
+      "types": "./dist/recipes/index.d.ts",
+      "import": "./dist/recipes/index.js",
+      "require": "./dist/recipes/index.cjs"
+    },
+    "./webhook": {
+      "types": "./dist/webhook/index.d.ts",
+      "import": "./dist/webhook/index.js",
+      "require": "./dist/webhook/index.cjs"
+    },
+    "./client/application": {
+      "types": "./dist/client/application/index.d.ts",
+      "import": "./dist/client/application/index.js",
+      "require": "./dist/client/application/index.cjs"
+    },
+    "./client/business": {
+      "types": "./dist/client/business/index.d.ts",
+      "import": "./dist/client/business/index.js",
+      "require": "./dist/client/business/index.cjs"
+    },
+    "./client/connect": {
+      "types": "./dist/client/connect/index.d.ts",
+      "import": "./dist/client/connect/index.js",
+      "require": "./dist/client/connect/index.cjs"
+    },
+    "./client/health": {
+      "types": "./dist/client/health/index.d.ts",
+      "import": "./dist/client/health/index.js",
+      "require": "./dist/client/health/index.cjs"
+    },
+    "./client/payments": {
+      "types": "./dist/client/payments/index.d.ts",
+      "import": "./dist/client/payments/index.js",
+      "require": "./dist/client/payments/index.cjs"
+    },
+    "./client/reports": {
+      "types": "./dist/client/reports/index.d.ts",
+      "import": "./dist/client/reports/index.js",
+      "require": "./dist/client/reports/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:contract": "ZEAM_CONTRACT_TESTS=1 vitest run test/contract",
+    "sync-spec": "node scripts/sync-spec.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "@vitest/coverage-v8": "^2.1.5",
+    "eslint": "^9.16.0",
+    "prettier": "^3.4.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.5"
+  },
+  "keywords": [
+    "zeam",
+    "sdk",
+    "stellar",
+    "payments",
+    "api-gateway"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
