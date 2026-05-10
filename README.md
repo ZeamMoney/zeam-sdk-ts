@@ -4,23 +4,25 @@
 [![License](https://img.shields.io/github/license/ZeamMoney/zeam-sdk-ts)](./LICENSE)
 [![Node](https://img.shields.io/node/v/@zeammoney/sdk)](https://nodejs.org)
 
-Official TypeScript SDK for the **Zeam Platform API Gateway**. Secure-by-default,
-opinionated, and kept in lockstep with the gateway contract.
+Official TypeScript SDK for the **Zeam API Gateway**. Server-side only (Node.js 22+,
+Deno, Bun). Typed clients, high-level recipes, and automatic auth lifecycle management.
 
-**Server-side only**: Node.js 22+, Deno, Bun. No browser build — one-time
-credentials (`stellar.secret`, `connectSecret`, `apiKey.secret`,
-`webhookSecret.secret`) must never reach an end-user device.
+## Features
 
-The SDK gives partner and first-party integrators:
+- **Typed clients** — 1:1 wrappers for every `/v1/*` gateway endpoint
+- **Recipes** — one-call workflows for OTP login, SEP-10 auth, connect payments, credential rotation
+- **Two auth tracks** — Business (OTP/Firebase) and Connect (SEP-10), isolated at the type level
+- **Secure by default** — memory-only token store, TLS 1.3, payload redaction, constant-time webhook verification
+- **Observable** — OpenTelemetry hooks, structured events, `X-Request-Id` propagation
+- **Versioned parity** — runtime handshake against `/healthz` fails fast on gateway mismatch
 
-- Typed, 1:1 clients for every `/v1/*` gateway endpoint.
-- High-level **recipes** for common end-to-end flows (OTP login, SEP-10 login,
-  application registration, connect payment orchestration, credential rotation).
-- Automatic authentication lifecycle management (acquisition, single-flight
-  refresh, cross-track isolation, secure storage).
-- A narrow wrapper over the Stellar SDK so partners never import
-  `@stellar/stellar-sdk` directly.
-- Inbound webhook HMAC verification with replay protection.
+## Installation
+
+```bash
+npm install @zeammoney/sdk
+```
+
+## Quick Start
 
 ```ts
 import { Client, Environment } from "@zeammoney/sdk";
@@ -31,57 +33,72 @@ const client = new Client({ environment: Environment.Production });
 const session = await loginOTP(client, {
   mobileNumber: "+27821234567",
   askCode: async (hint) => {
-    // partner-supplied UX returns the code the end user typed.
     return prompt(`OTP sent to ${hint.maskedDestination}`)!;
   },
 });
 ```
 
-## Install
-
-```bash
-npm install @zeammoney/sdk
-```
-
 See [docs/getting-started.md](docs/getting-started.md) for a full walkthrough.
 
-## Features
+## Configuration
 
-- **Two authentication tracks** — Business (OTP/Firebase) and Connect (SEP-10)
-  are isolated at the type level; the SDK refuses to send a Business token to a
-  Connect endpoint or vice versa.
-- **Recipes**:
-  - `loginOTP` — Business OTP login.
-  - `registerApplication` — one-time-secret capture at registration.
-  - `connectLogin` — full SEP-10 flow using a stored Stellar seed.
-  - `connectPayment` — 9-step off-ramp payment orchestration.
-  - `rotateCredential` — API key / webhook secret rotation.
-- **Secure by default** — memory-only token store, redaction before any
-  user-supplied logger, TLS 1.3 minimum, constant-time webhook signature
-  verification, SSRF guards on `connect.exec`.
-- **Observable** — OpenTelemetry hooks, structured events, `X-Request-Id`
-  propagation. No secrets ever reach spans or logs.
-- **Versioned parity** — declares `MIN_GATEWAY_VERSION` and performs a
-  runtime handshake against `/healthz` so a mismatched gateway fails fast.
+| Option | Default | Description |
+|---|---|---|
+| `Environment.Production` | `https://api-gateway.zeam.app` | Canonical API gateway |
+| `customEnvironment(url)` | — | Local dev (e.g. `http://localhost:8080`) |
+| `timeoutMs` | 30000 | Per-call deadline in ms |
+| `verboseErrors` | `false` | Include upstream gateway messages in errors |
+| `skipVersionCheck` | `false` | Disable `/healthz` handshake |
+
+### Environment variables
+
+```bash
+ZEAM_API_BASE_URL=https://api-gateway.zeam.app
+ZEAM_CLIENT_ID=your_stellar_public_key
+ZEAM_CLIENT_SECRET=your_stellar_seed     # from your secret manager
+ZEAM_API_KEY=your_api_key                # required for Connect endpoints
+```
+
+### Sandbox mode
+
+Zeam does not provide a separate sandbox URL. All integrations — sandbox and
+production — call the same `https://api-gateway.zeam.app` endpoint. Your
+credentials and Zeam-side account configuration determine your access mode.
+You do not change URLs to switch between sandbox and production.
+
+## Error handling
+
+```ts
+import { ZeamError, Kind } from "@zeammoney/sdk";
+
+try {
+  const data = await client.raw().get("/v1/business/association/all");
+} catch (err) {
+  if (err instanceof ZeamError) {
+    console.log(`code=${err.code} kind=${err.kind} status=${err.status}`);
+    if (err.is(Kind.Transient)) {
+      // safe to retry
+    }
+  }
+}
+```
 
 ## Security
 
 Distributed publicly — read [SECURITY.md](SECURITY.md) for the threat model,
 disclosure process, and operational patterns integrators must follow.
 
-**Never** commit the one-time credentials returned by `POST /v1/application`
+Never commit one-time credentials returned by `POST /v1/application`
 (`stellar.secret`, `connectSecret`, `apiKey.secret`, `webhookSecret.secret`)
 to source control. Use a cloud secret manager.
 
 ## Versioning
 
-SDK `vA.B.C` targets gateway `vA.B.≥0`. Breaking contract changes bump
-`A` (gateway) and `A` (SDK) together. See [docs/versioning.md](docs/versioning.md).
+SDK `vA.B.C` targets gateway `vA.B.≥0`. See [docs/versioning.md](docs/versioning.md).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The goal is to get a new contributor
-from clone to first passing test in **under ten minutes**.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Clone to first passing test in under ten minutes.
 
 ## License
 

@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   const mobile = process.env.ZEAM_DEMO_MOBILE;
   if (!mobile) throw new Error("set ZEAM_DEMO_MOBILE=+...");
 
-  const client = new Client({ environment: Environment.Sandbox });
+  const client = new Client({ environment: Environment.Production });
   const rl = createInterface({ input: process.stdin, output: process.stdout });
 
   const sess = await loginOTP(client, {

@@ -5,8 +5,8 @@ import { computeBackoff, isRetryableStatus } from "./retry.js";
 import { isMutating } from "./fetcher.js";
 
 describe("unwrap", () => {
-  it("returns inner data on a SPEC §18 success envelope", () => {
-    const body = `{"ok":true,"request_id":"rid-1","resource":"foo","verb":"get","data":{"hello":"world"}}`;
+  it("returns inner data on a standard gateway success envelope", () => {
+    const body = `{"data":{"hello":"world"},"status":200,"message":"OK"}`;
     const result = unwrap(200, body);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.data).toEqual({ hello: "world" });
@@ -19,15 +19,13 @@ describe("unwrap", () => {
     if (result.ok) expect(result.data).toMatchObject({ idToken: "abc" });
   });
 
-  it("extracts a SPEC §18 error envelope on non-2xx", () => {
-    const body = `{"ok":false,"request_id":"rid-2","errors":[{"code":"invalid_token","message":"nope","details":{"k":"v"}}]}`;
+  it("extracts a standard gateway error envelope on non-2xx", () => {
+    const body = `{"data":null,"status":401,"message":"invalid_token: nope"}`;
     const result = unwrap(401, body);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe("invalid_token");
-      expect(result.error.requestId).toBe("rid-2");
       expect(result.error.status).toBe(401);
-      expect(result.error.details).toEqual({ k: "v" });
     }
   });
 

@@ -6,8 +6,6 @@ export { Client, RawClient, type ClientOptions, type Doer } from "./client.js";
 export {
   Environment,
   Production,
-  Staging,
-  Sandbox,
   custom as customEnvironment,
 } from "./environment.js";
 export {

@@ -1,14 +1,10 @@
 /**
- * SPEC §18 envelope unwrap. The gateway emits:
+ * Standard gateway envelope unwrap. The gateway emits:
  *
- *   {ok, request_id, resource, verb, data, state?, substate?}
+ *   {data, status, message}
  *
- * on success and
- *
- *   {ok: false, request_id, errors: [{code, message, details}]}
- *
- * on failure. `/auth-connect*` is the one exception — bare JSON that we
- * pass through unchanged.
+ * on both success and failure. `/auth-connect*` is the one exception —
+ * bare JSON that we pass through unchanged.
  */
 export interface EnvelopeError {
   status: number;
@@ -18,16 +14,11 @@ export interface EnvelopeError {
   details?: Record<string, unknown>;
 }
 
-interface SuccessEnvelope {
-  ok?: boolean;
-  request_id?: string;
+/** Standard gateway envelope shape: {data, status, message} */
+interface GatewayEnvelope {
   data?: unknown;
-}
-
-interface ErrorEnvelope {
-  ok?: boolean;
-  request_id?: string;
-  errors?: Array<{ code?: string; message?: string; details?: Record<string, unknown> }>;
+  status?: number;
+  message?: string;
 }
 
 export type UnwrapResult = { ok: true; data: unknown } | { ok: false; error: EnvelopeError };
@@ -40,10 +31,17 @@ export type UnwrapResult = { ok: true; data: unknown } | { ok: false; error: Env
 export function unwrap(status: number, body: string): UnwrapResult {
   if (status >= 200 && status < 300) {
     try {
-      const parsed = JSON.parse(body) as SuccessEnvelope;
-      if (parsed && parsed.ok === true && "data" in parsed) {
+      const parsed = JSON.parse(body) as GatewayEnvelope;
+      if (
+        parsed &&
+        typeof parsed.status === "number" &&
+        parsed.status >= 200 &&
+        "data" in parsed
+      ) {
         return { ok: true, data: parsed.data };
       }
+      // Bare-JSON passthrough for endpoints that don't use the
+      // standard envelope (e.g. /auth-connect returns bare SEP-10 JSON).
       return { ok: true, data: parsed };
     } catch {
       return { ok: true, data: body };
@@ -52,13 +50,14 @@ export function unwrap(status: number, body: string): UnwrapResult {
 
   const out: EnvelopeError = { status, requestId: "", code: "", message: "" };
   try {
-    const parsed = JSON.parse(body) as ErrorEnvelope;
-    out.requestId = parsed.request_id ?? "";
-    const first = parsed.errors?.[0];
-    if (first) {
-      out.code = first.code ?? "";
-      out.message = first.message ?? "";
-      out.details = first.details;
+    const parsed = JSON.parse(body) as GatewayEnvelope;
+    const msg = parsed.message ?? "";
+    out.message = msg;
+    // The gateway encodes error codes as the prefix before ":" in the
+    // message field (e.g. "missing_field: amount is required").
+    const colonIdx = msg.indexOf(":");
+    if (colonIdx > 0) {
+      out.code = msg.slice(0, colonIdx).trim();
     }
   } catch {
     // leave the EnvelopeError fields at their defaults.

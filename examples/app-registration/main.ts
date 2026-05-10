@@ -9,7 +9,7 @@ import type { Session } from "@zeammoney/sdk/auth";
 import { registerApplication } from "@zeammoney/sdk/recipes";
 
 async function main(): Promise<void> {
-  const client = new Client({ environment: Environment.Sandbox });
+  const client = new Client({ environment: Environment.Production });
 
   // Partner-provided: load an existing Business session (typically
   // obtained via loginOTP and rehydrated from a secret manager).

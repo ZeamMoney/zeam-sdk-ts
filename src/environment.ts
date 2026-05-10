@@ -3,32 +3,20 @@
  * the SDK will talk to.
  */
 export interface Environment {
-  readonly name: "production" | "staging" | "sandbox" | "custom";
+  readonly name: "production" | "custom";
   readonly baseURL: string;
 }
 
 /**
- * Predeclared production environment — https://api.zeam.app.
+ * Predeclared production environment — https://api-gateway.zeam.app.
+ *
+ * Sandbox mode does not use a separate URL. Access mode is determined
+ * by the credentials and account configuration that Zeam applies to
+ * your application, not by the URL you call.
  */
 export const Production: Environment = Object.freeze({
   name: "production",
-  baseURL: "https://api.zeam.app",
-});
-
-/**
- * Predeclared staging environment — https://api.staging.zeam.app.
- */
-export const Staging: Environment = Object.freeze({
-  name: "staging",
-  baseURL: "https://api.staging.zeam.app",
-});
-
-/**
- * Predeclared sandbox environment — https://api.sandbox.zeam.app.
- */
-export const Sandbox: Environment = Object.freeze({
-  name: "sandbox",
-  baseURL: "https://api.sandbox.zeam.app",
+  baseURL: "https://api-gateway.zeam.app",
 });
 
 /**
@@ -48,7 +36,5 @@ export function custom(baseURL: string): Environment {
  */
 export const Environment = {
   Production,
-  Staging,
-  Sandbox,
   custom,
 } as const;

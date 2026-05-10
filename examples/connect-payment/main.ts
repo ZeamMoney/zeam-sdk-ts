@@ -9,7 +9,7 @@ import { newConnectPayment } from "@zeammoney/sdk/recipes";
 import { mustAsset } from "@zeammoney/sdk/stellar";
 
 async function main(): Promise<void> {
-  const client = new Client({ environment: Environment.Sandbox });
+  const client = new Client({ environment: Environment.Production });
 
   // Partner-supplied inputs.
   const businessSession: Session = /* your loader here */ null as unknown as Session;

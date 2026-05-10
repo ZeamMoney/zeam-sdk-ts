@@ -51,7 +51,7 @@ export class FakeServer {
 }
 
 /**
- * Write a SPEC §18 success envelope.
+ * Write a standard gateway success envelope.
  */
 export function writeEnvelope(res: ServerResponse, requestId: string, data: unknown): void {
   res.setHeader("Content-Type", "application/json");
@@ -59,17 +59,15 @@ export function writeEnvelope(res: ServerResponse, requestId: string, data: unkn
   res.statusCode = 200;
   res.end(
     JSON.stringify({
-      ok: true,
-      request_id: requestId,
-      resource: "test",
-      verb: "get",
       data,
+      status: 200,
+      message: "OK",
     }),
   );
 }
 
 /**
- * Write a SPEC §18 error envelope.
+ * Write a standard gateway error envelope.
  */
 export function writeError(
   res: ServerResponse,
@@ -83,9 +81,9 @@ export function writeError(
   res.statusCode = status;
   res.end(
     JSON.stringify({
-      ok: false,
-      request_id: requestId,
-      errors: [{ code, message }],
+      data: null,
+      status,
+      message: `${code}: ${message}`,
     }),
   );
 }
