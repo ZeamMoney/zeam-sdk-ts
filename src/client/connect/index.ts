@@ -84,7 +84,7 @@ export class ConnectClient {
       );
     }
     const raw = await call<{
-      data?: { connectors?: { connectors?: Connector[] } };
+      connectors?: { connectors?: Connector[] };
     }>(this.doer, {
       method: "POST",
       path: "/v1/connect-query",
@@ -94,7 +94,7 @@ export class ConnectClient {
       body: { countryISO: input.countryISO, method: input.method },
       signal,
     });
-    return raw.data?.connectors?.connectors ?? [];
+    return raw.connectors?.connectors ?? [];
   }
 
   getQuote(session: Session, input: QuoteInput, signal?: AbortSignal): Promise<QuoteResponse> {
