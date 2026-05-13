@@ -15,6 +15,12 @@ interface TokenResponse {
   expiresIn: string;
 }
 
+interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: string;
+}
+
 /**
  * SEP10Flow runs the Connect SEP-10 authentication flow. Unlike the
  * Business surface, `/auth-connect*` is bare JSON (not SPEC §18).
@@ -70,9 +76,9 @@ export class SEP10Flow {
    */
   async refresh(session: Session): Promise<Session> {
     if (session.track !== Track.Connect) throw new WrongTrackError();
-    const u = new URL("/v1/public/auth-connect/refresh", this.baseURL);
-    const resp = await this.postBareJSON<TokenResponse>(u, { refreshToken: session.refreshToken });
-    session.update(resp.idToken, resp.refreshToken, expiryFromExpiresIn(resp.expiresIn));
+    const u = new URL("/v1/public/auth/refresh", this.baseURL);
+    const resp = await this.postBareJSON<RefreshResponse>(u, { refreshToken: session.refreshToken });
+    session.update(resp.accessToken, resp.refreshToken, expiryFromExpiresIn(resp.expiresIn));
     return session;
   }
 
@@ -99,6 +105,10 @@ export class SEP10Flow {
     if (resp.status < 200 || resp.status >= 300) {
       throw new Error(`auth: ${req.method} ${new URL(req.url).pathname} status ${resp.status}`);
     }
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw) as { status?: number; data?: unknown };
+    if ("data" in parsed && typeof parsed.status === "number" && parsed.status >= 200 && parsed.status < 300) {
+      return parsed.data as T;
+    }
+    return parsed as T;
   }
 }

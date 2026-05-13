@@ -14,6 +14,14 @@ interface VerifyResponse {
   customToken?: string;
 }
 
+interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: string;
+  tokenType: string;
+  userId: string;
+}
+
 interface ChallengeResponse {
   requestId: string;
   maskedDestination: string;
@@ -66,10 +74,10 @@ export class OTPFlow {
    */
   async refresh(session: Session): Promise<Session> {
     if (session.track !== Track.Business) throw new WrongTrackError();
-    const resp = await this.post<VerifyResponse>("/v1/public/auth/refresh", {
+    const resp = await this.post<RefreshResponse>("/v1/public/auth/refresh", {
       refreshToken: session.refreshToken,
     });
-    session.update(resp.idToken, resp.refreshToken, expiryFromExpiresIn(resp.expiresIn));
+    session.update(resp.accessToken, resp.refreshToken, expiryFromExpiresIn(resp.expiresIn));
     return session;
   }
 
@@ -88,8 +96,8 @@ export class OTPFlow {
       throw new Error(`auth: ${path} returned status ${resp.status}`);
     }
     try {
-      const parsed = JSON.parse(raw) as { ok?: boolean; data?: unknown };
-      if (parsed && parsed.ok === true && "data" in parsed) {
+      const parsed = JSON.parse(raw) as { status?: number; data?: unknown };
+if (parsed && "data" in parsed && typeof parsed.status === "number" && parsed.status >= 200 && parsed.status < 300) {
         return parsed.data as T;
       }
       return parsed as T;
