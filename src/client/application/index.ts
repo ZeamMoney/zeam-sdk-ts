@@ -2,6 +2,37 @@ import { Track, type Session } from "../../auth/index.js";
 import type { Doer } from "../../client.js";
 import { call } from "../call.js";
 
+export interface SettlementAccount {
+  publicKey: string;
+  vaultId: string;
+}
+
+export interface RegisterApplicationInput {
+  associationId: string;
+  applicationName: string;
+  /** Must be a valid URL. */
+  webhookUrl: string;
+  webhookMethod?: "POST" | "PUT";
+  settlementAccount?: SettlementAccount;
+  /** RFC3339 expiry date. */
+  expiresAt?: string;
+}
+
+export interface ApplicationRecord {
+  id: string;
+  applicationName: string;
+  associationId: string;
+  classificationCode: string;
+  publicKey?: string;
+  connectIntegratorId?: string;
+  environment: string;
+  status: string;
+  activated: boolean;
+  idpAuthId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StellarMaterial {
   publicKey: string;
   secret: string;
@@ -27,7 +58,7 @@ export interface WebhookSecretMaterial {
  * `recipes.registerApplication`'s `captureOneTimeSecrets` callback.
  */
 export interface RegistrationResponse {
-  application: unknown;
+  application: ApplicationRecord;
   integratorId: string;
   stellar: StellarMaterial;
   apiKey: APIKeyMaterial;
@@ -37,12 +68,18 @@ export interface RegistrationResponse {
   warnings?: string[];
 }
 
+/** Bare `{keyId, secret, last4}` returned by POST /v1/application/:id/rotate-credential. */
 export interface RotateCredentialResponse {
-  apiKey: APIKeyMaterial;
+  keyId: string;
+  secret: string;
+  last4: string;
 }
 
+/** Bare `{webhookId, secret, last4}` returned by POST /v1/application/:id/webhook/:webhookId/rotate-secret. */
 export interface RotateWebhookSecretResponse {
-  webhookSecret: WebhookSecretMaterial;
+  webhookId: string;
+  secret: string;
+  last4: string;
 }
 
 /**
@@ -56,7 +93,7 @@ export class ApplicationClient {
 
   async register(
     session: Session,
-    payload: unknown,
+    payload: RegisterApplicationInput,
     signal?: AbortSignal,
   ): Promise<RegistrationResponse> {
     const resp = await call<RegistrationResponse>(this.doer, {

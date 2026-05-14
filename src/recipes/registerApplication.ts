@@ -1,6 +1,6 @@
 import type { Session } from "../auth/index.js";
 import type { Client } from "../client.js";
-import { ApplicationClient } from "../client/application/index.js";
+import { ApplicationClient, type RegisterApplicationInput } from "../client/application/index.js";
 
 /**
  * Credentials that `POST /v1/application` returns exactly once.
@@ -18,8 +18,7 @@ export interface OneTimeSecrets {
 
 export interface RegisterAppInput {
   session: Session;
-  /** Shape is upstream-owned; forwarded through the gateway unchanged. */
-  payload: unknown;
+  payload: RegisterApplicationInput;
   captureOneTimeSecrets: (secrets: OneTimeSecrets) => Promise<void> | void;
   signal?: AbortSignal;
 }

@@ -36,11 +36,11 @@ export async function rotateCredential(
 
   try {
     await input.captureNew({
-      keyId: resp.apiKey.keyId,
-      newSecret: resp.apiKey.secret,
-      last4: resp.apiKey.last4,
+      keyId: resp.keyId,
+      newSecret: resp.secret,
+      last4: resp.last4,
     });
   } finally {
-    resp.apiKey.secret = "";
+    resp.secret = "";
   }
 }
