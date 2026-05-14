@@ -139,12 +139,13 @@ export class ConnectPayment {
   }
 
   async getBeneficiary(): Promise<Beneficiary> {
-    this.beneficiary = await this.business.getBeneficiary(
+    const { beneficiary } = await this.business.getBeneficiary(
       this.input.businessSession,
       this.input.associationId,
       this.input.beneficiaryId,
       this.input.signal,
     );
+    this.beneficiary = beneficiary;
     return this.beneficiary;
   }
 
@@ -250,8 +251,8 @@ export class ConnectPayment {
       body as unknown as Parameters<BusinessClient["executeWalletTransaction"]>[2],
       this.input.signal,
     );
-    this.walletTxHash = result.txHash;
-    return result.txHash;
+    this.walletTxHash = result.transactionHash;
+    return result.transactionHash;
   }
 
   async executeConnectPayment(): Promise<ExecuteResponse> {

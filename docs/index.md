@@ -7,6 +7,7 @@ contract. Server-side only (Node 22+, Deno, Bun).
 - **Install**: `npm install @zeammoney/sdk`
 - **Quickstart**: [Getting Started](getting-started.md)
 - **Common flows**: [Recipes](recipes.md)
+- **Business API**: [BusinessClient](business.md)
 - **Security posture**: [Security](security.md)
 - **Source**: [ZeamMoney/zeam-sdk-ts](https://github.com/ZeamMoney/zeam-sdk-ts)
 
