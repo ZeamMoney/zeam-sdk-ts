@@ -18,6 +18,8 @@ export interface CallOptions {
   connectSecret?: string;
   body?: unknown;
   signal?: AbortSignal;
+  /** HTTP status codes to treat as success (e.g. 402 for Connect quotes). */
+  passthroughStatuses?: number[];
 }
 
 /**
@@ -48,7 +50,7 @@ export async function call<T = unknown>(doer: Doer, opts: CallOptions): Promise<
 
   const resp = await doer.fetch(req);
   const raw = await resp.text();
-  const parsed = unwrap(resp.status, raw);
+  const parsed = unwrap(resp.status, raw, opts.passthroughStatuses);
   if (!parsed.ok) {
     throw new ZeamError({
       code: parsed.error.code,

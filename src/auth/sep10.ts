@@ -61,6 +61,25 @@ export class SEP10Flow {
   }
 
   /**
+   * POST /v1/public/auth-connect/sign-in — server-side round-trip.
+   * The gateway fetches the challenge, signs it, and submits it.
+   * Use this in trusted server contexts only; the secret is sent to the gateway.
+   */
+  async signIn(publicKey: string, secret: string): Promise<Session> {
+    if (!publicKey) throw new Error("auth: publicKey is required");
+    if (!secret) throw new Error("auth: secret is required");
+    const u = new URL("/v1/public/auth-connect/sign-in", this.baseURL);
+    const resp = await this.postBareJSON<TokenResponse>(u, { publicKey, secret });
+    return new Session({
+      track: Track.Connect,
+      idToken: resp.idToken,
+      refreshToken: resp.refreshToken,
+      expiresAt: expiryFromExpiresIn(resp.expiresIn),
+      subject: publicKey,
+    });
+  }
+
+  /**
    * Full SEP-10 round-trip with the supplied keypair. Used by
    * `connectLogin` and `connectPayment` recipes.
    */

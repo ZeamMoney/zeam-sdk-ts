@@ -32,8 +32,8 @@ export interface ConnectPaymentInput {
   /** Must match the gateway enum regex and the beneficiary destination. */
   method: string;
   countryISO: string;
-  /** Amount in the Connect-quoted accepted asset. Max 7 fractional digits. */
-  sendAmount: string;
+  /** Amount to send (in the connector's accepted asset). */
+  sendAmount: number;
   memo?: string;
   memoType?: "Text" | "Hash" | "ID";
   /** Partner-supplied connect secret (captured at registration). */
@@ -187,14 +187,11 @@ export class ConnectPayment {
     if (!this.connectSession || !this.selected) {
       throw new Error("recipes: selectConnector and signInConnect must run first");
     }
-    const destination = this.destinationPayload();
     this.connectQuote = await this.connect.getQuote(
       this.connectSession,
       {
-        connector_id: this.selected.id,
+        connectorId: this.selected.id,
         amount: this.input.sendAmount,
-        currency: this.selected.acceptedAsset,
-        destination,
       },
       this.input.signal,
     );
@@ -205,7 +202,7 @@ export class ConnectPayment {
   requiresStellarQuote(): boolean {
     if (!this.connectQuote) return false;
     try {
-      const accepted = parseAsset(this.connectQuote.acceptedAsset);
+      const accepted = parseAsset(this.connectQuote.sendCurrency);
       return !assetsEqual(this.input.fundingAsset, accepted);
     } catch {
       return false;
@@ -218,8 +215,8 @@ export class ConnectPayment {
       this.input.businessSession,
       {
         fromAsset: assetString(this.input.fundingAsset),
-        toAsset: this.connectQuote.acceptedAsset,
-        amount: this.connectQuote.sendAmount,
+        toAsset: this.connectQuote.sendCurrency,
+        amount: String(this.connectQuote.sendAmount),
       },
       this.input.signal,
     );
@@ -228,21 +225,21 @@ export class ConnectPayment {
 
   async executeStellarTransaction(): Promise<string> {
     if (!this.connectQuote) throw new Error("recipes: connect quote missing");
-    const toPublicKey = this.connectQuote.clearingAccount ?? "";
+    const toPublicKey = this.connectQuote.fundingInstructions?.destinationAccount ?? "";
     if (!toPublicKey) {
       throw new Error(
-        "recipes: connect quote did not return a clearingAccount; cannot build Stellar transaction",
+        "recipes: connect quote did not return fundingInstructions.destinationAccount; cannot build Stellar transaction",
       );
     }
     const body: Record<string, unknown> = {
       toPublicKey,
       fromAsset: assetString(this.input.fundingAsset),
-      amount: this.connectQuote.sendAmount,
+      amount: String(this.connectQuote.sendAmount),
       memo: this.input.memo,
       memoType: this.input.memoType,
     };
     if (this.requiresStellarQuote()) {
-      body.toAsset = this.connectQuote.acceptedAsset;
+      body.toAsset = this.connectQuote.sendCurrency;
       body.sendMax = this.stellarQuote?.sendMax;
     }
     const result = await this.business.executeWalletTransaction(
