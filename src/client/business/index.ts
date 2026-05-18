@@ -73,6 +73,28 @@ export class BusinessClient {
     );
   }
 
+  /**
+   * Request a Stellar path-payment quote between two assets.
+   *
+   * Validates both asset strings before sending (throws if malformed).
+   * Use the returned `sendMax` and `path` values as inputs to
+   * {@link executeWalletTransaction} when you want to lock in the rate.
+   *
+   * `POST /v1/stellar/quote`
+   *
+   * @param session - Active Business-track session obtained from `OTPFlow`.
+   * @param input - Source asset, destination asset, and the amount to convert.
+   * @param signal - Optional `AbortSignal` to cancel the in-flight request.
+   * @returns {@link StellarQuote} containing `sendMax`, the payment `path`, and FX details.
+   *
+   * @example
+   * const quote = await business.stellarQuote(session, {
+   *   fromAsset: "USDC:GABC...",
+   *   toAsset:   "XLM:native",
+   *   amount:    "100",
+   * });
+   * console.log(quote.sendMax);
+   */
   stellarQuote(
     session: Session,
     input: StellarQuoteInput,
