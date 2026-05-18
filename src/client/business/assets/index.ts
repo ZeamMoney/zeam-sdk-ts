@@ -3,30 +3,30 @@ import type { Doer } from "../../../client.js";
 import { call } from "../../call.js";
 
 export interface Asset {
-  id: string;
-  symbol: string;
-  name: string;
-  assetName: string;
-  type: string;
-  decimals: number;
-  contractAddress: string;
-  issuerAddress: string;
-  networkID: string;
-  networkName: string;
-  createdAt: string;
-  updatedAt: string;
+  id?: string;
+  symbol?: string;
+  name?: string;
+  assetName?: string;
+  type?: string;
+  decimals?: number;
+  contractAddress?: string;
+  issuerAddress?: string;
+  networkID?: string;
+  networkName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AssetDTO {
-  assetID: string;
-  name: string;
-  symbol: string;
-  contractAddress: string;
-  issuerAddress: string;
-  networkID: string;
-  networkName: string;
-  imageUrl: string;
-  networkImageUrl: string;
+  assetID?: string;
+  name?: string;
+  symbol?: string;
+  contractAddress?: string;
+  issuerAddress?: string;
+  networkID?: string;
+  networkName?: string;
+  imageUrl?: string;
+  networkImageUrl?: string;
 }
 
 export function assetMethods(doer: Doer) {

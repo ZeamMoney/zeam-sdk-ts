@@ -6,10 +6,10 @@ import { call } from "../call.js";
  * `{ok, status, uptime_ms, version}`).
  */
 export interface HealthResponse {
-  ok: boolean;
-  status: string;
-  uptime_ms: number;
-  version: string;
+  ok?: boolean;
+  status?: string;
+  uptime_ms?: number;
+  version?: string;
 }
 
 /**

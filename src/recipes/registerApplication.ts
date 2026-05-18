@@ -57,12 +57,12 @@ export async function registerApplication(
   if (!webhookSecret) throw new Error("recipes: registration response missing webhookSecret");
 
   const secrets: OneTimeSecrets = {
-    stellarSeed: resp.stellar.secret,
-    stellarPublicKey: resp.stellar.publicKey,
-    connectSecret: resp.connectSecret,
-    apiKey: resp.apiKey.secret,
-    webhookSecret: webhookSecret.secret,
-    webhookId: webhookSecret.webhookId,
+    stellarSeed: resp.stellar?.secret ?? "",
+    stellarPublicKey: resp.stellar?.publicKey ?? "",
+    connectSecret: resp.connectSecret ?? "",
+    apiKey: resp.apiKey?.secret ?? "",
+    webhookSecret: webhookSecret.secret ?? "",
+    webhookId: webhookSecret.webhookId ?? "",
   };
 
   try {
@@ -73,20 +73,20 @@ export async function registerApplication(
     secrets.connectSecret = "";
     secrets.apiKey = "";
     secrets.webhookSecret = "";
-    resp.stellar.secret = "";
+    if (resp.stellar) resp.stellar.secret = "";
     resp.connectSecret = "";
-    resp.apiKey.secret = "";
+    if (resp.apiKey) resp.apiKey.secret = "";
     webhookSecret.secret = "";
   }
 
   return {
-    integratorId: resp.integratorId,
+    integratorId: resp.integratorId ?? "",
     application: resp.application,
-    stellarPublicKey: resp.stellar.publicKey,
-    apiKeyId: resp.apiKey.keyId,
-    apiKeyLast4: resp.apiKey.last4,
-    webhookId: webhookSecret.webhookId,
-    webhookLast4: webhookSecret.last4,
+    stellarPublicKey: resp.stellar?.publicKey ?? "",
+    apiKeyId: resp.apiKey?.keyId ?? "",
+    apiKeyLast4: resp.apiKey?.last4 ?? "",
+    webhookId: webhookSecret.webhookId ?? "",
+    webhookLast4: webhookSecret.last4 ?? "",
     warnings: resp.warnings ?? [],
   };
 }

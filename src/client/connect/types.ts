@@ -46,79 +46,79 @@ export type MemoType = "Id" | "Hash" | "Text" | "Muxed";
 // ── Shared sub-types ──────────────────────────────────────────────────────────
 
 export interface LimitResponse {
-  id: string;
-  scope: string;
-  type: string;
-  min: number;
-  max: number;
+  id?: string;
+  scope?: string;
+  type?: string;
+  min?: number;
+  max?: number;
 }
 
 export interface FeeDto {
-  id: string;
-  feeType: string;
-  value: number;
-  currency: string;
+  id?: string;
+  feeType?: string;
+  value?: number;
+  currency?: string;
 }
 
 export interface AssetResponse {
-  id: string;
-  assetCode: string;
-  issuer: string;
-  currency: string;
+  id?: string;
+  assetCode?: string;
+  issuer?: string;
+  currency?: string;
 }
 
 export interface CountryResponse {
-  id: string;
-  name: string;
-  isoCode: string;
+  id?: string;
+  name?: string;
+  isoCode?: string;
 }
 
 export interface MethodProviderResponse {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
 }
 
 export interface ProviderAccountResponse {
-  id: string;
-  publicKey: string;
+  id?: string;
+  publicKey?: string;
 }
 
 export interface SupportedTransactionTypeDto {
-  c2c: boolean;
-  c2b: boolean;
-  b2c: boolean;
-  b2b: boolean;
+  c2c?: boolean;
+  c2b?: boolean;
+  b2c?: boolean;
+  b2b?: boolean;
 }
 
 // ── Routes + Providers (mutually referencing, defined together) ───────────────
 
 export interface RouteResponse {
-  routeId: string;
-  name: string;
-  direction: PaymentDirection;
-  method: RampMethod;
-  subRampMethod: SubRampMethod;
-  methodProvider: MethodProviderResponse;
-  country: CountryResponse;
-  settlementAsset: AssetResponse;
-  limits: LimitResponse[];
-  fees: FeeDto[];
-  paymentProvider: PaymentProviderResponse;
-  isActive: boolean;
-  rateType: RateType;
-  externalIdentifier: number;
+  routeId?: string;
+  name?: string;
+  direction?: PaymentDirection;
+  method?: RampMethod;
+  subRampMethod?: SubRampMethod;
+  methodProvider?: MethodProviderResponse;
+  country?: CountryResponse;
+  settlementAsset?: AssetResponse;
+  limits?: LimitResponse[];
+  fees?: FeeDto[];
+  paymentProvider?: PaymentProviderResponse;
+  isActive?: boolean;
+  rateType?: RateType;
+  externalIdentifier?: number;
   supportedTransactionType?: SupportedTransactionTypeDto;
 }
 
 export interface PaymentProviderResponse {
-  id: string;
-  name: string;
-  internalName: string;
-  routes: RouteResponse[];
-  accounts: ProviderAccountResponse[];
-  isActive: boolean;
-  created: string;
-  updated: string;
+  id?: string;
+  name?: string;
+  internalName?: string;
+  routes?: RouteResponse[];
+  accounts?: ProviderAccountResponse[];
+  isActive?: boolean;
+  created?: string;
+  updated?: string;
 }
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
@@ -135,33 +135,33 @@ export interface QuoteRequest {
 }
 
 export interface QuoteFundingAssetDto {
-  code: string;
-  issuer: string;
+  code?: string;
+  issuer?: string;
 }
 
 export interface QuoteFundingDto {
-  network: FundingNetwork;
-  destinationAccount: string;
-  asset: QuoteFundingAssetDto;
-  memoType: MemoType;
-  memo: string;
+  network?: FundingNetwork;
+  destinationAccount?: string;
+  asset?: QuoteFundingAssetDto;
+  memoType?: MemoType;
+  memo?: string;
 }
 
 export interface QuoteResponse {
-  quoteId: string;
-  connectorId: string;
-  sendAmount: number;
-  sendCurrency: string;
-  receiveAmount: number;
-  receiveCurrency: string;
-  direction: QuoteDirection;
-  rate: number;
-  fee: number;
-  feeCurrency: string;
-  total: number;
-  createdAt: string;
-  expiresAt: string;
-  transactionType: TransactionType;
+  quoteId?: string;
+  connectorId?: string;
+  sendAmount?: number;
+  sendCurrency?: string;
+  receiveAmount?: number;
+  receiveCurrency?: string;
+  direction?: QuoteDirection;
+  rate?: number;
+  fee?: number;
+  feeCurrency?: string;
+  total?: number;
+  createdAt?: string;
+  expiresAt?: string;
+  transactionType?: TransactionType;
   fundingInstructions?: QuoteFundingDto;
   metadata?: Record<string, unknown>;
 }
@@ -307,11 +307,11 @@ export interface OnRampRequest {
 }
 
 export interface OnRampResponse {
-  status: ConnectTransactionStatus;
-  transactionId: string;
-  externalReference: string;
-  routeId: string;
-  createdAt: string;
+  status?: ConnectTransactionStatus;
+  transactionId?: string;
+  externalReference?: string;
+  routeId?: string;
+  createdAt?: string;
 }
 
 export interface OnRampSenderDto {
@@ -348,12 +348,12 @@ export interface OnRampCashInRequest {
 }
 
 export interface OnRampCashInResponse {
-  reference: string;
-  transactionId: string;
-  providerName: string;
-  epReference: string;
-  expiresAt: string;
-  status: ConnectTransactionStatus;
+  reference?: string;
+  transactionId?: string;
+  providerName?: string;
+  epReference?: string;
+  expiresAt?: string;
+  status?: ConnectTransactionStatus;
 }
 
 // ── OffRamp ───────────────────────────────────────────────────────────────────
@@ -376,11 +376,11 @@ export interface OffRampRequest {
 }
 
 export interface OffRampResponse {
-  status: ConnectTransactionStatus;
-  transactionId: string;
-  externalReference: string;
-  connectorId: string;
-  createdAt: string;
+  status?: ConnectTransactionStatus;
+  transactionId?: string;
+  externalReference?: string;
+  connectorId?: string;
+  createdAt?: string;
 }
 
 // ── Execute (gateway-rewritten offramp lane) ──────────────────────────────────
@@ -393,89 +393,89 @@ export interface ExecuteRequest {
 }
 
 export interface ExecuteResponse {
-  transactionId: string;
-  status: string;
+  transactionId?: string;
+  status?: string;
   [k: string]: unknown;
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
 export interface ConnectStatusResponse {
-  transactionId: string;
-  status: ConnectTransactionStatus;
-  updated: string;
+  transactionId?: string;
+  status?: ConnectTransactionStatus;
+  updated?: string;
 }
 
 // ── Integrator ────────────────────────────────────────────────────────────────
 
 export interface IntegratorAccountResponse {
-  publicKey: string;
-  vaultId: string;
+  publicKey?: string;
+  vaultId?: string;
 }
 
 export interface WebhookResponse {
-  id: string;
-  url: string;
+  id?: string;
+  url?: string;
 }
 
 export interface IntegratorResponse {
-  id: string;
-  name: string;
-  settlementAccount: IntegratorAccountResponse;
-  webhooks: WebhookResponse[];
-  limits: LimitResponse[];
+  id?: string;
+  name?: string;
+  settlementAccount?: IntegratorAccountResponse;
+  webhooks?: WebhookResponse[];
+  limits?: LimitResponse[];
 }
 
 // ── Platform health ───────────────────────────────────────────────────────────
 
 export interface ApiHealth {
-  latencyP95Ms: number;
-  errorRate15m: number;
+  latencyP95Ms?: number;
+  errorRate15m?: number;
 }
 
 export interface DependencyHealth {
-  name: string;
-  type: string;
-  status: string;
+  name?: string;
+  type?: string;
+  status?: string;
   latencyMs?: number;
   lastSuccessUtc?: string;
   lastOutage?: string;
 }
 
 export interface MaintenanceWindow {
-  start: string;
-  end: string;
-  message: string;
+  start?: string;
+  end?: string;
+  message?: string;
 }
 
 export interface PlatformStatus {
   maintenanceWindow?: MaintenanceWindow;
-  allowedOperations: Record<string, string>;
+  allowedOperations?: Record<string, string>;
 }
 
 export interface PlatformHealthResponse {
-  status: string;
-  message: string;
-  timestampUtc: string;
-  region: string;
-  environment: string;
-  version: string;
-  uptimeSeconds: number;
-  api: ApiHealth;
-  dependencies: DependencyHealth[];
-  platform: PlatformStatus;
+  status?: string;
+  message?: string;
+  timestampUtc?: string;
+  region?: string;
+  environment?: string;
+  version?: string;
+  uptimeSeconds?: number;
+  api?: ApiHealth;
+  dependencies?: DependencyHealth[];
+  platform?: PlatformStatus;
 }
 
 // ── GraphQL connectors ────────────────────────────────────────────────────────
 
 export interface Connector {
-  id: string;
-  name: string;
-  method: string;
-  isActive: boolean;
-  acceptedAsset: string;
-  destinationAsset: string;
-  requiresQuote: boolean;
+  id?: string;
+  name?: string;
+  method?: string;
+  isActive?: boolean;
+  acceptedAsset?: string;
+  destinationAsset?: string;
+  requiresQuote?: boolean;
   fees?: unknown;
   limits?: unknown;
   execution?: unknown;

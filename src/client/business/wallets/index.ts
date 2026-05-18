@@ -3,42 +3,42 @@ import type { Doer } from "../../../client.js";
 import { call } from "../../call.js";
 
 export interface Wallet {
-  id: string;
-  walletName: string;
-  publicKey: string;
-  accountNumber: string;
-  binId: string;
-  custodial: boolean;
-  hasMultipleSigners: boolean;
-  networkId: string;
-  sequenceNumber: number;
-  typeId: string;
-  vaultId: string;
-  createdAt: string;
-  updatedAt: string;
+  id?: string;
+  walletName?: string;
+  publicKey?: string;
+  accountNumber?: string;
+  binId?: string;
+  custodial?: boolean;
+  hasMultipleSigners?: boolean;
+  networkId?: string;
+  sequenceNumber?: number;
+  typeId?: string;
+  vaultId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WalletDTO {
-  id: string;
-  walletName: string;
-  publicKey: string;
-  accountNumber: string;
-  custodial: boolean;
-  networkId: string;
-  typeId: string;
-  associationId: string;
-  associationName: string;
+  id?: string;
+  walletName?: string;
+  publicKey?: string;
+  accountNumber?: string;
+  custodial?: boolean;
+  networkId?: string;
+  typeId?: string;
+  associationId?: string;
+  associationName?: string;
 }
 
 export interface WalletType {
-  id: string;
-  name: string;
-  description: string;
-  custodyType: string;
-  isActive: boolean;
-  productId: string;
-  createdAt: string;
-  updatedAt: string;
+  id?: string;
+  name?: string;
+  description?: string;
+  custodyType?: string;
+  isActive?: boolean;
+  productId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateWalletInput {
@@ -49,9 +49,9 @@ export interface CreateWalletInput {
 }
 
 export interface CreateWalletResult {
-  id: string;
-  publicKey: string;
-  vaultId: string;
+  id?: string;
+  publicKey?: string;
+  vaultId?: string;
 }
 
 export interface UpdateWalletInput {
@@ -72,16 +72,16 @@ export interface WalletTransactionInput {
 }
 
 export interface WalletTransactionResult {
-  id: string;
-  identityId: string;
-  publicKey: string;
-  transactionHash: string;
-  transactionXdr: string;
-  resultXdr: string;
-  transactionDescription: string;
-  amount: string;
-  asset: string;
-  createdAt: string;
+  id?: string;
+  identityId?: string;
+  publicKey?: string;
+  transactionHash?: string;
+  transactionXdr?: string;
+  resultXdr?: string;
+  transactionDescription?: string;
+  amount?: string;
+  asset?: string;
+  createdAt?: string;
 }
 
 export function walletMethods(doer: Doer) {

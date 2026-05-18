@@ -15,38 +15,38 @@ export type PaymentMethod =
 export type BeneficiaryType = "Individual" | "Business";
 
 export interface PaymentDestination {
-  id: string;
-  beneficiary_id: string;
-  method: PaymentMethod;
-  label: string;
-  is_primary: boolean;
-  is_zeam_account: boolean;
-  country_iso: string;
-  country_name: string;
-  currency_code: string;
-  region: string;
+  id?: string;
+  beneficiary_id?: string;
+  method?: PaymentMethod;
+  label?: string;
+  is_primary?: boolean;
+  is_zeam_account?: boolean;
+  country_iso?: string;
+  country_name?: string;
+  currency_code?: string;
+  region?: string;
   // bank
-  bank_name: string;
-  bank_code: string;
-  account_number: string;
-  account_name: string;
-  sort_code: string;
-  iban: string;
-  swift_bic: string;
-  branch_code: string;
+  bank_name?: string;
+  bank_code?: string;
+  account_number?: string;
+  account_name?: string;
+  sort_code?: string;
+  iban?: string;
+  swift_bic?: string;
+  branch_code?: string;
   // mobile
-  mobile_number: string;
-  mobile_provider: string;
+  mobile_number?: string;
+  mobile_provider?: string;
   // crypto
-  network_id: string | null;
-  network_name: string;
-  asset_id: string | null;
-  asset_symbol: string;
-  wallet_address: string;
-  connector_id: string | null;
-  connector_name: string;
-  created_at: string;
-  updated_at: string;
+  network_id?: string | null;
+  network_name?: string;
+  asset_id?: string | null;
+  asset_symbol?: string;
+  wallet_address?: string;
+  connector_id?: string | null;
+  connector_name?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PaymentDestinationInput {
@@ -81,34 +81,34 @@ export interface PaymentDestinationInput {
 }
 
 export interface PaymentDestinationsResult {
-  payment_destinations: PaymentDestination[];
-  total: number;
+  payment_destinations?: PaymentDestination[];
+  total?: number;
 }
 
 export interface BeneficiaryIndividual {
-  id: string;
-  first_name: string;
-  last_name: string;
-  id_number: string;
-  date_of_birth: string | null;
-  nationality: string;
-  mobile_number: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
+  id?: string;
+  first_name?: string;
+  last_name?: string;
+  id_number?: string;
+  date_of_birth?: string | null;
+  nationality?: string;
+  mobile_number?: string;
+  email?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface BeneficiaryBusiness {
-  id: string;
-  company_name: string;
-  registration_number: string;
-  country_of_registration: string;
-  tax_id: string;
-  industry: string;
-  contact_person_name: string;
-  contact_number: string;
-  contact_email: string;
-  registered_address: string;
+  id?: string;
+  company_name?: string;
+  registration_number?: string;
+  country_of_registration?: string;
+  tax_id?: string;
+  industry?: string;
+  contact_person_name?: string;
+  contact_number?: string;
+  contact_email?: string;
+  registered_address?: string;
 }
 
 export interface BeneficiaryIndividualInput {
@@ -134,16 +134,16 @@ export interface BeneficiaryBusinessInput {
 }
 
 export interface Beneficiary {
-  id: string;
-  association_id: string;
-  beneficiary_type: BeneficiaryType;
-  reference: string;
-  individual: BeneficiaryIndividual | null;
-  business: BeneficiaryBusiness | null;
-  payment_destinations: PaymentDestination[];
-  addresses: unknown[];
-  created_at: string;
-  updated_at: string;
+  id?: string;
+  association_id?: string;
+  beneficiary_type?: BeneficiaryType;
+  reference?: string;
+  individual?: BeneficiaryIndividual | null;
+  business?: BeneficiaryBusiness | null;
+  payment_destinations?: PaymentDestination[];
+  addresses?: unknown[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface BeneficiaryInput {
@@ -157,16 +157,16 @@ export interface BeneficiaryInput {
 }
 
 export interface BulkCreateResult {
-  beneficiary_ids: string[];
-  success_count: number;
-  failed_count: number;
-  total: number;
-  results: Array<{ beneficiary_id: string; index: number; success: boolean }>;
+  beneficiary_ids?: string[];
+  success_count?: number;
+  failed_count?: number;
+  total?: number;
+  results?: Array<{ beneficiary_id?: string; index?: number; success?: boolean }>;
 }
 
 export interface BeneficiaryTags {
-  tags: string[];
-  suggested_tags: string[];
+  tags?: string[];
+  suggested_tags?: string[];
 }
 
 export interface BeneficiaryListParams {
@@ -176,20 +176,20 @@ export interface BeneficiaryListParams {
 }
 
 export interface BeneficiaryListResult {
-  beneficiaries: Beneficiary[];
+  beneficiaries?: Beneficiary[];
   total?: number;
 }
 
 export interface Connector {
-  id: string;
-  name: string;
-  method: PaymentMethod;
-  countryISO: string;
+  id?: string;
+  name?: string;
+  method?: PaymentMethod;
+  countryISO?: string;
   [k: string]: unknown;
 }
 
 export interface ConnectorsResult {
-  connectors: { connectors: Connector[] };
+  connectors?: { connectors?: Connector[] };
 }
 
 export function beneficiaryMethods(doer: Doer) {

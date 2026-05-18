@@ -36,9 +36,9 @@ export async function rotateCredential(
 
   try {
     await input.captureNew({
-      keyId: resp.keyId,
-      newSecret: resp.secret,
-      last4: resp.last4,
+      keyId: resp.keyId ?? "",
+      newSecret: resp.secret ?? "",
+      last4: resp.last4 ?? "",
     });
   } finally {
     resp.secret = "";

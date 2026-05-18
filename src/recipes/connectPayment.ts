@@ -96,10 +96,10 @@ export class ConnectPayment {
       throw new Error("recipes: ConnectPayment completed without populating all step outputs");
     }
     return {
-      connectTransactionId: this.executeResult.transactionId,
-      connectStatus: this.executeResult.status,
+      connectTransactionId: this.executeResult.transactionId ?? "",
+      connectStatus: this.executeResult.status ?? "",
       stellarTxHash: this.walletTxHash ?? "",
-      quoteId: this.connectQuote.quoteId,
+      quoteId: this.connectQuote.quoteId ?? "",
       connector: this.selected,
       connectSession: this.connectSession,
     };
@@ -190,7 +190,7 @@ export class ConnectPayment {
     this.connectQuote = await this.connect.getQuote(
       this.connectSession,
       {
-        connectorId: this.selected.id,
+        connectorId: this.selected.id ?? "",
         amount: this.input.sendAmount,
       },
       this.input.signal,
@@ -202,7 +202,7 @@ export class ConnectPayment {
   requiresStellarQuote(): boolean {
     if (!this.connectQuote) return false;
     try {
-      const accepted = parseAsset(this.connectQuote.sendCurrency);
+      const accepted = parseAsset(this.connectQuote.sendCurrency ?? "");
       return !assetsEqual(this.input.fundingAsset, accepted);
     } catch {
       return false;
@@ -215,8 +215,8 @@ export class ConnectPayment {
       this.input.businessSession,
       {
         fromAsset: assetString(this.input.fundingAsset),
-        toAsset: this.connectQuote.sendCurrency,
-        amount: String(this.connectQuote.sendAmount),
+        toAsset: this.connectQuote.sendCurrency ?? "",
+        amount: String(this.connectQuote.sendAmount ?? 0),
       },
       this.input.signal,
     );
@@ -248,8 +248,8 @@ export class ConnectPayment {
       body as unknown as Parameters<BusinessClient["executeWalletTransaction"]>[2],
       this.input.signal,
     );
-    this.walletTxHash = result.transactionHash;
-    return result.transactionHash;
+    this.walletTxHash = result.transactionHash ?? "";
+    return result.transactionHash ?? "";
   }
 
   async executeConnectPayment(): Promise<ExecuteResponse> {
@@ -260,7 +260,7 @@ export class ConnectPayment {
     this.executeResult = await this.connect.execute(
       this.connectSession,
       {
-        quoteId: this.connectQuote.quoteId,
+        quoteId: this.connectQuote.quoteId ?? "",
         txHash: this.walletTxHash,
         destination,
         memo: this.input.memo,
@@ -272,7 +272,7 @@ export class ConnectPayment {
 
   private destinationPayload(): unknown {
     if (!this.beneficiary) throw new Error("recipes: beneficiary not loaded");
-    const match = this.beneficiary.payment_destinations.find(
+    const match = (this.beneficiary.payment_destinations ?? []).find(
       (d) => d.method === this.input.method && d.country_iso === this.input.countryISO,
     );
     if (!match) {

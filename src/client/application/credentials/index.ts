@@ -3,9 +3,9 @@ import type { Doer } from "../../../client.js";
 import { call } from "../../call.js";
 
 export interface RotateCredentialResponse {
-  keyId: string;
-  secret: string;
-  last4: string;
+  keyId?: string;
+  secret?: string;
+  last4?: string;
 }
 
 // Shape is unknown — endpoint returns 501 until the backend SignerStore is wired.

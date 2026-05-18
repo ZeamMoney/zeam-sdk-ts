@@ -11,33 +11,33 @@ export type ApplicationStatus =
   | "revoked";
 
 export interface ApplicationRecord {
-  id: string;
-  associationId: string;
-  applicationName: string;
-  classificationCode: string;
+  id?: string;
+  associationId?: string;
+  applicationName?: string;
+  classificationCode?: string;
   publicKey?: string | null;
   connectIntegratorId?: string | null;
-  environment: string;
-  status: ApplicationStatus;
-  activated: boolean;
+  environment?: string;
+  status?: ApplicationStatus;
+  activated?: boolean;
   expiresAt?: string | null;
   idpAuthId?: string | null;
   settlementAccountPublicKey?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ApplicationEvent {
-  id: string;
+  id?: string;
   applicationId?: string;
   actorUserId?: string;
   actorIp?: string;
   userAgent?: string;
-  eventType: string;
-  outcome: string;
-  metadata: Record<string, unknown>;
+  eventType?: string;
+  outcome?: string;
+  metadata?: Record<string, unknown>;
   reason?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface SettlementAccount {
@@ -71,31 +71,31 @@ export interface ActivateApplicationInput {
 }
 
 export interface StellarMaterial {
-  publicKey: string;
-  secret: string;
-  vaultId: string;
+  publicKey?: string;
+  secret?: string;
+  vaultId?: string;
 }
 
 export interface APIKeyMaterial {
-  keyId: string;
-  secret: string;
-  last4: string;
+  keyId?: string;
+  secret?: string;
+  last4?: string;
 }
 
 export interface WebhookSecretMaterial {
-  webhookId: string;
-  secret: string;
-  last4: string;
+  webhookId?: string;
+  secret?: string;
+  last4?: string;
 }
 
 export interface RegistrationResponse {
-  application: ApplicationRecord;
-  integratorId: string;
-  stellar: StellarMaterial;
-  apiKey: APIKeyMaterial;
+  application?: ApplicationRecord;
+  integratorId?: string;
+  stellar?: StellarMaterial;
+  apiKey?: APIKeyMaterial;
   webhookSecret?: WebhookSecretMaterial;
-  connectSecret: string;
-  idpAuthId: string;
+  connectSecret?: string;
+  idpAuthId?: string;
   warnings?: string[];
 }
 

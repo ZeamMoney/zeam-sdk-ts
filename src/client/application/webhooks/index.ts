@@ -5,20 +5,20 @@ import { call } from "../../call.js";
 export type WebhookStatus = "pending_verification" | "active" | "paused" | "disabled" | "revoked";
 
 export interface Webhook {
-  id: string;
-  applicationId: string;
-  url: string;
-  webhookMethod: "POST" | "PUT";
+  id?: string;
+  applicationId?: string;
+  url?: string;
+  webhookMethod?: "POST" | "PUT";
   description?: string | null;
-  authScheme: "none" | "bearer" | "hmac";
-  status: WebhookStatus;
-  failureCount: number;
+  authScheme?: "none" | "bearer" | "hmac";
+  status?: WebhookStatus;
+  failureCount?: number;
   lastSuccessAt?: string | null;
   lastFailureAt?: string | null;
-  createdBy: string;
+  createdBy?: string;
   deletedAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AddWebhookInput {
@@ -36,14 +36,14 @@ export interface UpdateWebhookInput {
 }
 
 export interface RotateWebhookSecretResponse {
-  webhookId: string;
-  secret: string;
-  last4: string;
+  webhookId?: string;
+  secret?: string;
+  last4?: string;
 }
 
 export interface AddWebhookResponse {
-  webhook: Webhook;
-  secret: RotateWebhookSecretResponse;
+  webhook?: Webhook;
+  secret?: RotateWebhookSecretResponse;
 }
 
 export function webhookMethods(doer: Doer) {
