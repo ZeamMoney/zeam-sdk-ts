@@ -4,7 +4,7 @@
  * Tests client.otp.requestOTP → verifyOTP → refresh.
  *
  * Usage:
- *   ZEAM_TEST_MOBILE=+27781506692 npx tsx test/otp-smoke.ts
+ *   ZEAM_TEST_MOBILE=+27123456789 npx tsx test/otp-smoke.ts
  */
 
 import * as readline from "node:readline/promises";

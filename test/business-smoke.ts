@@ -4,7 +4,7 @@
  * Uses the real SDK methods and logs every request + response verbosely.
  *
  * Usage:
- *   ZEAM_TEST_MOBILE=+27781506692 npx tsx test/business-smoke.ts
+ *   ZEAM_TEST_MOBILE=+27123456789 npx tsx test/business-smoke.ts
  */
 
 import * as readline from "node:readline/promises";
