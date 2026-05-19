@@ -1,13 +1,7 @@
 import { WrongTrackError } from "../errors.js";
-import type { ChallengeSigner, Keypair } from "../stellar/index.js";
 import { expiryFromExpiresIn, type Fetcher } from "./otp.js";
 import { Session } from "./session.js";
 import { Track } from "./tracks.js";
-
-interface Challenge {
-  transaction: string;
-  network_passphrase: string;
-}
 
 interface TokenResponse {
   idToken: string;
@@ -16,49 +10,20 @@ interface TokenResponse {
 }
 
 /**
- * SEP10Flow runs the Connect SEP-10 authentication flow. Unlike the
- * Business surface, `/auth-connect*` is bare JSON (not SPEC §18).
+ * SEP10Flow runs the Connect authentication flow. Unlike the Business
+ * surface, `/auth-connect*` is bare JSON (not SPEC §18).
  */
 export class SEP10Flow {
   constructor(
     private readonly baseURL: URL,
     private readonly fetcher: Fetcher,
-    private readonly signer: ChallengeSigner,
     private readonly credentials?: { publicKey: string; secret: string },
   ) {}
 
   /**
-   * GET /v1/public/auth-connect?account=<pubkey> — returns the challenge XDR.
-   */
-  async getChallenge(account: string): Promise<Challenge> {
-    if (!account) throw new Error("auth: account is required");
-    const u = new URL("/v1/public/auth-connect", this.baseURL);
-    u.searchParams.set("account", account);
-    const out = await this.getBareJSON<Challenge>(u);
-    if (!out.transaction) throw new Error("auth: empty challenge XDR");
-    return out;
-  }
-
-  /**
-   * POST /v1/public/auth-connect — returns the Connect session.
-   */
-  async submitSigned(signedXDR: string, subject?: string): Promise<Session> {
-    if (!signedXDR) throw new Error("auth: signed XDR is required");
-    const u = new URL("/v1/public/auth-connect", this.baseURL);
-    const resp = await this.postBareJSON<TokenResponse>(u, { transaction: signedXDR });
-    return new Session({
-      track: Track.Connect,
-      idToken: resp.idToken,
-      refreshToken: resp.refreshToken,
-      expiresAt: expiryFromExpiresIn(resp.expiresIn),
-      subject,
-    });
-  }
-
-  /**
    * POST /v1/public/auth-connect/sign-in — server-side round-trip.
-   * The gateway fetches the challenge, signs it, and submits it.
-   * Use this in trusted server contexts only; the secret is sent to the gateway.
+   * The secret is sent to the gateway which performs the signing.
+   * Use this in trusted server contexts only.
    */
   async signIn(publicKey: string, secret: string): Promise<Session> {
     if (!publicKey) throw new Error("auth: publicKey is required");
@@ -75,17 +40,6 @@ export class SEP10Flow {
   }
 
   /**
-   * Full SEP-10 round-trip with the supplied keypair. Used by
-   * `connectLogin` and `connectPayment` recipes.
-   */
-  async login(keypair: Keypair): Promise<Session> {
-    if (!keypair.canSign()) throw new Error("auth: keypair cannot sign (no seed)");
-    const challenge = await this.getChallenge(keypair.publicKey);
-    const signed = await this.signer.sign(challenge.transaction, keypair);
-    return this.submitSigned(signed, keypair.publicKey);
-  }
-
-  /**
    * Refresh a Connect session by re-authenticating with the stored credentials.
    * Requires credentials to be passed to the constructor.
    * Satisfies [Refresher].
@@ -98,11 +52,6 @@ export class SEP10Flow {
     const fresh = await this.signIn(this.credentials.publicKey, this.credentials.secret);
     session.update(fresh.idToken, fresh.refreshToken, fresh.expiresAt);
     return session;
-  }
-
-  private async getBareJSON<T>(u: URL): Promise<T> {
-    const req = new Request(u, { method: "GET", headers: { Accept: "application/json" } });
-    return this.doAndDecode<T>(req);
   }
 
   private async postBareJSON<T>(u: URL, body: unknown): Promise<T> {

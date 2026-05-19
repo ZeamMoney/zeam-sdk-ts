@@ -1,7 +1,4 @@
-import { Track, type Session } from "../../auth/index.js";
 import type { Doer } from "../../client.js";
-import { parseAsset } from "../../stellar/index.js";
-import { call } from "../call.js";
 import { associationMethods } from "./associations/index.js";
 import { assetMethods } from "./assets/index.js";
 import { beneficiaryMethods } from "./beneficiaries/index.js";
@@ -37,19 +34,6 @@ export type {
   WalletType,
 } from "./wallets/index.js";
 
-export interface StellarQuoteInput {
-  fromAsset: string;
-  toAsset: string;
-  amount: string;
-}
-
-export interface StellarQuote {
-  sendMax: string;
-  path?: unknown;
-  fx?: unknown;
-  [k: string]: unknown;
-}
-
 /**
  * Wraps `/v1/business/*`. Requires a Firebase-backed Business session.
  * Methods are implemented in domain subfolders and composed here.
@@ -63,7 +47,7 @@ export interface BusinessClient
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class BusinessClient {
-  constructor(private doer: Doer) {
+  constructor(doer: Doer) {
     Object.assign(
       this,
       associationMethods(doer),
@@ -71,44 +55,5 @@ export class BusinessClient {
       walletMethods(doer),
       beneficiaryMethods(doer),
     );
-  }
-
-  /**
-   * Request a Stellar path-payment quote between two assets.
-   *
-   * Validates both asset strings before sending (throws if malformed).
-   * Use the returned `sendMax` and `path` values as inputs to
-   * {@link executeWalletTransaction} when you want to lock in the rate.
-   *
-   * `POST /v1/stellar/quote`
-   *
-   * @param session - Active Business-track session obtained from `OTPFlow`.
-   * @param input - Source asset, destination asset, and the amount to convert.
-   * @param signal - Optional `AbortSignal` to cancel the in-flight request.
-   * @returns {@link StellarQuote} containing `sendMax`, the payment `path`, and FX details.
-   *
-   * @example
-   * const quote = await business.stellarQuote(session, {
-   *   fromAsset: "USDC:GABC...",
-   *   toAsset:   "XLM:native",
-   *   amount:    "100",
-   * });
-   * console.log(quote.sendMax);
-   */
-  stellarQuote(
-    session: Session,
-    input: StellarQuoteInput,
-    signal?: AbortSignal,
-  ): Promise<StellarQuote> {
-    parseAsset(input.fromAsset);
-    parseAsset(input.toAsset);
-    return call<StellarQuote>(this.doer, {
-      method: "POST",
-      path: "/v1/stellar/quote",
-      session,
-      requireTrack: Track.Business,
-      body: input,
-      signal,
-    });
   }
 }

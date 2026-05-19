@@ -4,7 +4,6 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/auth/index.ts",
-    "src/stellar/index.ts",
     "src/recipes/index.ts",
     "src/webhook/index.ts",
     "src/client/application/index.ts",

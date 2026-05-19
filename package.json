@@ -26,11 +26,6 @@
       "import": "./dist/auth/index.js",
       "require": "./dist/auth/index.cjs"
     },
-    "./stellar": {
-      "types": "./dist/stellar/index.d.ts",
-      "import": "./dist/stellar/index.js",
-      "require": "./dist/stellar/index.cjs"
-    },
     "./recipes": {
       "types": "./dist/recipes/index.d.ts",
       "import": "./dist/recipes/index.js",
@@ -110,7 +105,6 @@
   "keywords": [
     "zeam",
     "sdk",
-    "stellar",
     "payments",
     "api-gateway"
   ],

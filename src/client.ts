@@ -2,7 +2,6 @@ import { OTPFlow, SEP10Flow, MemoryStore, type Refresher, type Session, type Tok
 import type { Environment } from "./environment.js";
 import { Environment as Env } from "./environment.js";
 import { IncompatibleGatewayError, ZeamError, kindFromStatus } from "./errors.js";
-import { newSigner, PublicNetworkPassphrase } from "./stellar/index.js";
 import { newFetcher, type ObservabilityHook } from "./transport/fetcher.js";
 import { unwrap } from "./transport/envelope.js";
 import { MIN_GATEWAY_VERSION, VERSION } from "./version.js";
@@ -26,8 +25,6 @@ export interface ClientOptions {
   skipVersionCheck?: boolean;
   /** Default per-call deadline in ms when no AbortSignal is supplied. */
   timeoutMs?: number;
-  /** Override the SEP-10 network passphrase. Defaults to Public. */
-  stellarNetwork?: string;
   /** Inject a custom fetch implementation — primarily for testing. */
   fetchImpl?: typeof fetch;
   /**
@@ -62,7 +59,6 @@ export class Client implements Doer {
   readonly userAgent: string;
   readonly verboseErrors: boolean;
   readonly timeoutMs: number;
-  readonly stellarNetwork: string;
   readonly tokenStore: TokenStore;
 
   readonly #fetcher: (req: Request) => Promise<Response>;
@@ -94,7 +90,6 @@ export class Client implements Doer {
     this.userAgent = opts.userAgent ?? `@zeammoney/sdk/${VERSION}`;
     this.verboseErrors = opts.verboseErrors ?? false;
     this.timeoutMs = opts.timeoutMs ?? 30_000;
-    this.stellarNetwork = opts.stellarNetwork ?? PublicNetworkPassphrase;
     this.tokenStore = opts.tokenStore ?? new MemoryStore();
     this.#skipVersionCheck = opts.skipVersionCheck ?? false;
     this.#refresher = opts.refresher;
@@ -129,13 +124,9 @@ export class Client implements Doer {
     return this.#otp;
   }
 
-  /** Connect SEP-10 flow helper. */
+  /** Connect sign-in flow helper. */
   get sep10(): SEP10Flow {
-    this.#sep10 ??= new SEP10Flow(
-      this.baseURL,
-      (req) => this.#fetcher(req),
-      newSigner(this.stellarNetwork),
-    );
+    this.#sep10 ??= new SEP10Flow(this.baseURL, (req) => this.#fetcher(req));
     return this.#sep10;
   }
 
