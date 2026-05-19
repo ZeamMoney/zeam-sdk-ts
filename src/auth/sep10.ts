@@ -15,12 +15,6 @@ interface TokenResponse {
   expiresIn: string;
 }
 
-interface RefreshResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: string;
-}
-
 /**
  * SEP10Flow runs the Connect SEP-10 authentication flow. Unlike the
  * Business surface, `/auth-connect*` is bare JSON (not SPEC §18).
@@ -30,6 +24,7 @@ export class SEP10Flow {
     private readonly baseURL: URL,
     private readonly fetcher: Fetcher,
     private readonly signer: ChallengeSigner,
+    private readonly credentials?: { publicKey: string; secret: string },
   ) {}
 
   /**
@@ -91,13 +86,17 @@ export class SEP10Flow {
   }
 
   /**
-   * Refresh a Connect session. Satisfies [Refresher].
+   * Refresh a Connect session by re-authenticating with the stored credentials.
+   * Requires credentials to be passed to the constructor.
+   * Satisfies [Refresher].
    */
   async refresh(session: Session): Promise<Session> {
     if (session.track !== Track.Connect) throw new WrongTrackError();
-    const u = new URL("/v1/public/auth/refresh", this.baseURL);
-    const resp = await this.postBareJSON<RefreshResponse>(u, { refreshToken: session.refreshToken });
-    session.update(resp.accessToken, resp.refreshToken, expiryFromExpiresIn(resp.expiresIn));
+    if (!this.credentials) {
+      throw new Error("auth: SEP10Flow requires { publicKey, secret } in the constructor to refresh");
+    }
+    const fresh = await this.signIn(this.credentials.publicKey, this.credentials.secret);
+    session.update(fresh.idToken, fresh.refreshToken, fresh.expiresAt);
     return session;
   }
 

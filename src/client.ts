@@ -1,4 +1,4 @@
-import { OTPFlow, SEP10Flow, MemoryStore, type TokenStore } from "./auth/index.js";
+import { OTPFlow, SEP10Flow, MemoryStore, type Refresher, type Session, type TokenStore } from "./auth/index.js";
 import type { Environment } from "./environment.js";
 import { Environment as Env } from "./environment.js";
 import { IncompatibleGatewayError, ZeamError, kindFromStatus } from "./errors.js";
@@ -30,6 +30,13 @@ export interface ClientOptions {
   stellarNetwork?: string;
   /** Inject a custom fetch implementation — primarily for testing. */
   fetchImpl?: typeof fetch;
+  /**
+   * Refresher for transparent 401 retry. Pass an `OTPFlow` (Business track)
+   * or `SEP10Flow` (Connect track) — or any object implementing `Refresher`.
+   * When a call returns 401 the session is refreshed once and the request is
+   * retried automatically. Concurrent 401s coalesce into a single refresh.
+   */
+  refresher?: Refresher;
 }
 
 /**
@@ -43,6 +50,7 @@ export interface Doer {
   readonly verboseErrors: boolean;
   readonly timeoutMs: number;
   fetch(req: Request): Promise<Response>;
+  refreshSession?(session: Session): Promise<void>;
 }
 
 /**
@@ -59,6 +67,8 @@ export class Client implements Doer {
 
   readonly #fetcher: (req: Request) => Promise<Response>;
   readonly #skipVersionCheck: boolean;
+  readonly #refresher: Refresher | undefined;
+  readonly #refreshPending = new Map<string, Promise<void>>();
 
   #otp?: OTPFlow;
   #sep10?: SEP10Flow;
@@ -87,6 +97,7 @@ export class Client implements Doer {
     this.stellarNetwork = opts.stellarNetwork ?? PublicNetworkPassphrase;
     this.tokenStore = opts.tokenStore ?? new MemoryStore();
     this.#skipVersionCheck = opts.skipVersionCheck ?? false;
+    this.#refresher = opts.refresher;
 
     this.#fetcher = newFetcher({
       userAgent: this.userAgent,
@@ -97,6 +108,19 @@ export class Client implements Doer {
 
   fetch(req: Request): Promise<Response> {
     return this.#fetcher(req);
+  }
+
+  async refreshSession(session: Session): Promise<void> {
+    if (!this.#refresher) return;
+    const key = session.track;
+    const existing = this.#refreshPending.get(key);
+    if (existing) return existing;
+    const promise = Promise.resolve()
+      .then(() => this.#refresher!.refresh(session))
+      .then(() => {})
+      .finally(() => this.#refreshPending.delete(key));
+    this.#refreshPending.set(key, promise);
+    return promise;
   }
 
   /** Business OTP flow helper. */

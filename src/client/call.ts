@@ -28,27 +28,47 @@ export interface CallOptions {
  * {@link ZeamError} on non-2xx or {@link WrongTrackError} when a session
  * of the wrong track is passed in.
  */
-export async function call<T = unknown>(doer: Doer, opts: CallOptions): Promise<T> {
-  if (opts.session && opts.requireTrack && opts.requireTrack !== Track.Unknown) {
-    if (opts.session.track !== opts.requireTrack) throw new WrongTrackError();
-  }
-
+function buildRequest(doer: Doer, opts: CallOptions): Request {
   const u = new URL(opts.path, doer.baseURL);
   if (opts.query) u.search = opts.query.toString();
-
   const headers: Record<string, string> = { Accept: "application/json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   if (opts.session) headers["Authorization"] = `Bearer ${opts.session.idToken}`;
   if (opts.connectSecret) headers["x-zeam-auth"] = opts.connectSecret;
-
-  const req = new Request(u, {
+  return new Request(u, {
     method: opts.method,
     headers,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     signal: opts.signal,
   });
+}
 
-  const resp = await doer.fetch(req);
+export async function call<T = unknown>(doer: Doer, opts: CallOptions): Promise<T> {
+  if (opts.session && opts.requireTrack && opts.requireTrack !== Track.Unknown) {
+    if (opts.session.track !== opts.requireTrack) throw new WrongTrackError();
+  }
+
+  let resp = await doer.fetch(buildRequest(doer, opts));
+
+  if (
+    resp.status === 401 &&
+    opts.session &&
+    doer.refreshSession &&
+    !opts.path.startsWith("/v1/public/auth")
+  ) {
+    let refreshed = false;
+    try {
+      await doer.refreshSession(opts.session);
+      refreshed = true;
+    } catch {
+      // refresh failed — surface original 401
+    }
+    if (refreshed) {
+      void resp.body?.cancel();
+      resp = await doer.fetch(buildRequest(doer, opts));
+    }
+  }
+
   const raw = await resp.text();
   const parsed = unwrap(resp.status, raw, opts.passthroughStatuses);
   if (!parsed.ok) {
