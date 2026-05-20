@@ -1,8 +1,8 @@
 # zeam-sdk-ts
 
-[![npm](https://img.shields.io/npm/v/@zeammoney/sdk)](https://www.npmjs.com/package/@zeammoney/sdk)
+[![npm](https://img.shields.io/badge/npm-v0.1.0-CB3837?logo=npm)](https://www.npmjs.com/package/@zeammoney/sdk)
 [![License](https://img.shields.io/github/license/ZeamMoney/zeam-sdk-ts)](./LICENSE)
-[![Node](https://img.shields.io/node/v/@zeammoney/sdk)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js)](https://nodejs.org)
 
 Official TypeScript SDK for the **Zeam API Gateway**. Server-side only (Node.js 22+,
 Deno, Bun). Typed clients, high-level recipes, and automatic auth lifecycle management.
