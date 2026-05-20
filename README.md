@@ -42,13 +42,13 @@ See [docs/getting-started.md](docs/getting-started.md) for a full walkthrough.
 
 ## Configuration
 
-| Option | Default | Description |
-|---|---|---|
-| `Environment.Production` | `https://api-gateway.zeam.app` | Canonical API gateway |
-| `customEnvironment(url)` | — | Local dev (e.g. `http://localhost:8080`) |
-| `timeoutMs` | 30000 | Per-call deadline in ms |
-| `verboseErrors` | `false` | Include upstream gateway messages in errors |
-| `skipVersionCheck` | `false` | Disable `/healthz` handshake |
+| Option                   | Default                        | Description                                 |
+| ------------------------ | ------------------------------ | ------------------------------------------- |
+| `Environment.Production` | `https://api-gateway.zeam.app` | Canonical API gateway                       |
+| `customEnvironment(url)` | —                              | Local dev (e.g. `http://localhost:8080`)    |
+| `timeoutMs`              | 30000                          | Per-call deadline in ms                     |
+| `verboseErrors`          | `false`                        | Include upstream gateway messages in errors |
+| `skipVersionCheck`       | `false`                        | Disable `/healthz` handshake                |
 
 ### Environment variables
 

@@ -26,10 +26,10 @@ console.log(`gateway version: ${h.version}`);
 
 ## Configuration
 
-| Option | Default | Description |
-|---|---|---|
-| `Environment.Production` | `https://api-gateway.zeam.app` | Canonical API gateway (production and sandbox) |
-| `customEnvironment(url)` | — | Local development (e.g. `http://localhost:8080`) |
+| Option                   | Default                        | Description                                      |
+| ------------------------ | ------------------------------ | ------------------------------------------------ |
+| `Environment.Production` | `https://api-gateway.zeam.app` | Canonical API gateway (production and sandbox)   |
+| `customEnvironment(url)` | —                              | Local development (e.g. `http://localhost:8080`) |
 
 ### Sandbox mode
 
