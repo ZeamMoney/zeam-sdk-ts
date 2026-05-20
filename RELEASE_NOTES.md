@@ -1,5 +1,6 @@
 # v0.1.0 — Initial public release
-*2026-04-23*
+
+_2026-04-23_
 
 The first public release of **@zeammoney/sdk** — the official TypeScript
 SDK for the Zeam Platform API Gateway. Secure-by-default, opinionated,
@@ -30,12 +31,14 @@ npm install @zeammoney/sdk
 ## Highlights
 
 ### Two-layer SDK design
+
 - Low-level `client/*` sub-packages mirror the gateway's route groups
   1:1 with typed request / response contracts.
 - High-level `recipes/` module composes multi-step workflows behind a
   single function call.
 
 ### Recipes shipped in v0.1.0
+
 - `loginOTP` — Business OTP login (request → verify → persist).
 - `registerApplication` — `POST /v1/application` with a
   `captureOneTimeSecrets` callback that zeros the in-memory copy
@@ -48,6 +51,7 @@ npm install @zeammoney/sdk
 - `quoteThenExecute<In, Q, R>` — generic "quote → execute" helper.
 
 ### Secure-by-default
+
 - `MemoryStore` is the default `TokenStore`; disk persistence requires
   an explicit insecure opt-in with a startup warning.
 - `redact` strips bearer tokens, `x-zeam-auth`, `Set-Cookie`, JWTs,
@@ -65,6 +69,7 @@ npm install @zeammoney/sdk
   absolute URIs (SSRF guard).
 
 ### Stellar surface
+
 - Narrow wrapper exposing `Keypair`, `Signer`, and `Asset` — the only
   module allowed to import `@stellar/stellar-sdk` once the upstream
   binding lands in Phase 1.
@@ -73,6 +78,7 @@ npm install @zeammoney/sdk
   malformed inputs before the network call.
 
 ### Authentication lifecycle
+
 - `OTPFlow` + `SEP10Flow` handle the two gateway tracks.
 - `AutoRefresher` coalesces concurrent refreshes into a single
   in-flight Promise per track; single-use refresh-token rotation is
@@ -80,14 +86,16 @@ npm install @zeammoney/sdk
 - `Session.erase()` zeros tokens on rotation or sign-out.
 
 ### Observability without leakage
+
 - `observer` hook in `ClientOptions` receives pre-redacted events
   (`http.request` with method, host, path, status, latency, X-Request-Id).
 - The observer is shielded from its own throws so instrumentation
   cannot break request processing.
 
 ### Error model
+
 - `ZeamError` extends `Error` and carries `{ code, kind, status,
-  requestId, upstreamMessage, details }`.
+requestId, upstreamMessage, details }`.
 - `kindFromStatus` maps HTTP → canonical `Kind` per ADR 0003 amendment
   2026-04-22 (`Validation` / `Auth` / `Authz` / `NotFound` / `Conflict`
   / `Transient` / `Remote`).

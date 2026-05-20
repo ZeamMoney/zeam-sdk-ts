@@ -32,12 +32,7 @@ export function unwrap(status: number, body: string): UnwrapResult {
   if (status >= 200 && status < 300) {
     try {
       const parsed = JSON.parse(body) as GatewayEnvelope;
-      if (
-        parsed &&
-        typeof parsed.status === "number" &&
-        parsed.status >= 200 &&
-        "data" in parsed
-      ) {
+      if (parsed && typeof parsed.status === "number" && parsed.status >= 200 && "data" in parsed) {
         return { ok: true, data: parsed.data };
       }
       // Bare-JSON passthrough for endpoints that don't use the

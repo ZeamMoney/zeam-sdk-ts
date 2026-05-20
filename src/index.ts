@@ -3,11 +3,7 @@
  * only (Node 22+, Deno, Bun). See README and SECURITY for details.
  */
 export { Client, RawClient, type ClientOptions, type Doer } from "./client.js";
-export {
-  Environment,
-  Production,
-  custom as customEnvironment,
-} from "./environment.js";
+export { Environment, Production, custom as customEnvironment } from "./environment.js";
 export {
   ZeamError,
   IncompatibleGatewayError,
