@@ -1,14 +1,3469 @@
 openapi: 3.1.0
 info:
-  title: Zeam Platform API Gateway
+  title: Zeam API Gateway
+  version: 0.1.0
   description: |
-    Placeholder. The authoritative spec lives in `zeam-api-gateway.go` at
-    `docs/openapi.yaml` and is synced into this repo via `npm run
-    sync-spec`. Do not hand-edit this file — regenerate it from the
-    gateway tag you are targeting.
-  version: 0.0.0-unreleased
+    The Zeam API Gateway is the single entry point for all client traffic into
+    the Zeam platform. It terminates authentication (SEP-10 app principals,
+    OTP user principals, Firebase end-users, Azure Entra admins) and proxies
+    to downstream services (`anchor.zeam.money`, `auth.zeam.dotnet`,
+    `businessapi.zeam.go`, `association-applications.zeam.go`, Stellar Horizon).
+
+    This spec is the **source of truth** for the endpoint reference. Every PR
+    that changes a route under `/internal/transport/http/**` must update this
+    file in the same change. See `docs/mintlify/AGENTS.md` for the contribution
+    rules.
+  contact:
+    name: Zeam developers
+    url: https://github.com/BeamMoney/zeam-api-gateway.go
+    email: developers@zeam.app
+  license:
+    name: Proprietary
 servers:
   - url: https://api-gateway.zeam.app
-    description: Production
-paths: {}
-components: {}
+    description: Zeam API Gateway
+  - url: http://localhost:8080
+    description: Local
+tags:
+  - name: Health
+    description: Liveness and readiness probes.
+  - name: Public auth
+    description: Unauthenticated endpoints that issue credentials.
+  - name: Business
+    description: Proxied Business API — associations, assets, wallets, beneficiaries.
+  - name: Applications
+    description: Registration, lifecycle, credentials and webhooks for third-party association applications.
+  - name: Transactions
+    description: |
+      Transaction initialisation, status, and load. Proxied to
+      `transactions-v2.zeam.dotnet` and `transactions-acl.zeam.dotnet`.
+      Firebase authenticated.
+  - name: Connect
+    description: |
+      Cross-border payments and ramps. Proxied to `connect.zeam.dotnet`.
+      Requires both a SEP-10 bearer (`Authorization`) and an app credential
+      (`x-zeam-auth`), except `/v1/connect-query` which also accepts
+      Firebase bearers without `x-zeam-auth`.
+  - name: Stellar
+    description: |
+      Read-only Stellar Horizon lookups — account details, account
+      transactions, transaction details, and transaction effects.
+      Firebase authenticated. No credentials are forwarded to Horizon.
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Gateway liveness
+      description: |
+        Returns the gateway's liveness state, uptime in milliseconds, and — if
+        a database is wired — the database ping result. Unauthenticated.
+      operationId: getHealthz
+      security: []
+      responses:
+        "200":
+          description: Gateway is live.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeHealth"
+              examples:
+                ok:
+                  summary: Healthy response
+                  value:
+                    ok: true
+                    request_id: "req_01HWX9YZ7T5K8QF3NSDE9B2M0P"
+                    resource: health
+                    verb: get
+                    data:
+                      status: ready
+                      uptime_ms: 874211
+                      version: "5b1f3ac"
+                      db: "ok"
+
+  /v1/public/auth/request-otp:
+    post:
+      tags: [Public auth]
+      summary: Start OTP login
+      description: |
+        Begins an OTP login flow for a user, member, or third-party user. The
+        gateway proxies to the Zeam Auth Service (`auth.zeam.dotnet`) which
+        dispatches the OTP (WhatsApp by default). Unauthenticated — this
+        endpoint issues the credential that protects every `/v1/*` route.
+      operationId: requestOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestOtpInput"
+      responses:
+        "200":
+          description: OTP dispatched.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestOtpResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/public/auth/verify-otp:
+    post:
+      tags: [Public auth]
+      summary: Verify OTP and issue tokens
+      description: |
+        Exchanges a one-time code for an `idToken` / `refreshToken`. The gateway
+        captures the `idToken` in its in-memory `AnchorStore` so the single
+        `ValidateBearer` middleware can protect `/v1/*` routes regardless of
+        which backend issued the token.
+      operationId: verifyOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpInput"
+      responses:
+        "200":
+          description: Tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/public/auth/refresh:
+    post:
+      tags: [Public auth]
+      summary: Refresh an access token
+      description: |
+        Exchanges a `refreshToken` for a new `idToken`. Proxied to
+        `auth.zeam.app /api/v1/Authentication/refresh-token` regardless of
+        whether the original token was issued via OTP or SEP-10.
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+                  description: Long-lived refresh token previously issued by the gateway.
+      responses:
+        "200":
+          description: Fresh token pair.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/public/auth/sign-up:
+    post:
+      tags: [Public auth]
+      summary: Start OTP sign-up
+      description: |
+        Begins an OTP sign-up flow for a new user. Proxied to
+        `auth.zeam.dotnet /api/v1/Authentication/sign-up`, which creates a
+        provisional user record and dispatches an OTP. The response carries
+        an opaque `requestId` that must be echoed back to
+        `/v1/public/auth/sign-up/verify`.
+      operationId: signUp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestOtpInput"
+      responses:
+        "200":
+          description: OTP dispatched.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestOtpResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/public/auth/sign-up/verify:
+    post:
+      tags: [Public auth]
+      summary: Verify OTP and complete sign-up
+      description: |
+        Exchanges the sign-up OTP for a Firebase `idToken` / `refreshToken`.
+        Proxied to
+        `auth.zeam.dotnet /api/v1/Authentication/sign-up/verification`. The
+        returned `idToken` is required by `POST /v1/users` to persist the
+        user's metadata record (`Users.Metadata`).
+      operationId: signUpVerify
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpInput"
+      responses:
+        "200":
+          description: Tokens issued; sign-up complete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/public/auth/resend-otp:
+    post:
+      tags: [Public auth]
+      summary: Resend OTP
+      description: |
+        Re-dispatches the OTP for an existing `requestId`. Used by both the
+        sign-in and sign-up flows. Proxied to
+        `auth.zeam.dotnet /api/v1/Otp/resend`.
+      operationId: resendOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId]
+              properties:
+                requestId:
+                  type: string
+                  description: The opaque request identifier returned by sign-in or sign-up.
+      responses:
+        "200":
+          description: OTP re-dispatched.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: boolean
+                  status:
+                    type: integer
+                  message:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users:
+    post:
+      tags: [Public auth]
+      summary: Create user (signup metadata)
+      description: |
+        Persists the `Users.Metadata` record for a newly OTP-verified user.
+        The Firebase `idToken` issued by `/v1/public/auth/sign-up/verify` is
+        forwarded verbatim in the `Authorization` header so
+        `userapi.zeam.dotnet` can derive the `idpUid` from its own Firebase
+        middleware. Proxied to `userapi.zeam.dotnet /api/v1/Users/CreateUser`.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: |
+                Forwarded verbatim to userapi. Typical fields include
+                `firstName`, `lastName`, `phoneNumber`, and `email`. Refer to
+                `User.Zeam.Application.Commands.User.CreateUserCommand` for
+                the full schema.
+      responses:
+        "200":
+          description: User metadata persisted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users/me:
+    get:
+      tags: [Public auth]
+      summary: Get user profile
+      description: |
+        Returns the authenticated user's profile (`IUserProfile`). Firebase
+        authenticated. Proxied to
+        `userapi.zeam.dotnet /api/v1/Users/GetUserBasic`.
+      operationId: getMe
+      responses:
+        "200":
+          description: User profile.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users/me/assets:
+    get:
+      tags: [Public auth]
+      summary: Get user asset balances
+      description: |
+        Returns the authenticated user's asset balances (`IUserAssets`).
+        Firebase authenticated. Proxied to
+        `userapi.zeam.dotnet /api/v1/UserAccounts/GetAssets`.
+      operationId: getMyAssets
+      responses:
+        "200":
+          description: Asset balances.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users/me/transactions:
+    get:
+      tags: [Public auth]
+      summary: List user transaction history
+      description: |
+        Returns paginated transaction history for the authenticated user
+        (`IPaginatedTransactions`). Supports cursor pagination via the
+        `cursor`, `publicKey`, and `assetCode` query parameters.
+        Firebase authenticated. Proxied to
+        `userapi.zeam.dotnet /api/v1/UserTransactions/transactionHistoryPaginated`.
+      operationId: getMyTransactions
+      parameters:
+        - name: publicKey
+          in: query
+          schema:
+            type: string
+        - name: assetCode
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Paging token.
+      responses:
+        "200":
+          description: Paginated transaction list.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users/me/pin/validate:
+    post:
+      tags: [Public auth]
+      summary: Validate user PIN
+      description: |
+        Validates a user's PIN by phone number. Firebase authenticated.
+        Proxied to `userapi.zeam.dotnet /api/v1/Users/ValidatePin`.
+      operationId: validatePin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, pin]
+              properties:
+                phoneNumber:
+                  type: string
+                  description: E.164 phone number.
+                pin:
+                  type: string
+                  description: PIN to validate.
+      responses:
+        "200":
+          description: PIN validation result.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/public/auth-connect:
+    get:
+      tags: [Public auth]
+      summary: SEP-10 challenge (app principal)
+      description: |
+        Fetches a Stellar SEP-10 challenge XDR for the given app public key.
+        The gateway proxies `GET /auth-connect?account=<G...>` to the Zeam
+        anchor. The caller signs the returned challenge with their Stellar
+        seed and submits it to `POST /v1/public/auth-connect`.
+      operationId: sep10Challenge
+      security: []
+      parameters:
+        - name: account
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^G[A-Z0-9]{55}$"
+          description: Stellar public key (56 characters, starts with `G`).
+          example: GA5ZSE...EXAMPLE
+      responses:
+        "200":
+          description: SEP-10 challenge envelope.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction:
+                    type: string
+                    description: Base64 Stellar transaction XDR.
+                  network_passphrase:
+                    type: string
+                    example: Public Global Stellar Network ; September 2015
+    post:
+      tags: [Public auth]
+      summary: Submit signed SEP-10 challenge
+      description: |
+        Submits the signed challenge XDR and receives `{idToken, refreshToken,
+        expiresIn}`. The gateway captures the `idToken` in its `AnchorStore`
+        for subsequent `/v1/*` calls.
+      operationId: sep10Submit
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transaction]
+              properties:
+                transaction:
+                  type: string
+                  description: Base64 Stellar transaction XDR, signed by the app Stellar seed.
+      responses:
+        "200":
+          description: Tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+
+  /v1/public/auth-connect/sign-in:
+    post:
+      tags: [Public auth]
+      summary: Server-side SEP-10 round trip (convenience)
+      description: |
+        Collapses challenge + sign + submit into a single server-side call for
+        clients that cannot sign locally. The Stellar seed is held on the
+        server stack only for the duration of the request. Prefer the two-step
+        challenge/submit flow whenever the caller can sign client-side — see
+        ADR 0010 for the security posture.
+      operationId: sep10SignIn
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicKey, secret]
+              properties:
+                publicKey:
+                  type: string
+                  pattern: "^G[A-Z0-9]{55}$"
+                secret:
+                  type: string
+                  description: Stellar seed (`S...`). Held on stack only; never logged.
+                  writeOnly: true
+      responses:
+        "200":
+          description: Tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+
+  /v1/business/association/all:
+    get:
+      tags: [Business]
+      summary: List all associations
+      description: |
+        Proxies to the Business API (`businessapi.zeam.go`) `GET /api/v1/associations/all`.
+        Requires a Firebase bearer token. Response filtered by the caller's `firebase_uid`.
+      operationId: listAssociations
+      responses:
+        "200":
+          description: List of associations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/association/{id}:
+    get:
+      tags: [Business]
+      summary: Get association by ID
+      description: |
+        Proxies to `GET /api/v1/associations/:id` on the Business API.
+      operationId: getAssociationById
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Single association.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Association"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Asset ──────────────────────────────────────────────────────────────
+
+  /v1/business/asset:
+    get:
+      tags: [Business]
+      summary: List all assets
+      description: |
+        Returns all assets enriched with bridge data.
+        Proxies to `GET /api/v1/asset/assets`.
+      operationId: listAssets
+      responses:
+        "200":
+          description: Asset list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/asset/dto:
+    get:
+      tags: [Business]
+      summary: List asset DTOs
+      description: |
+        Returns minimal `AssetDTO` records for assets that have at least one
+        active instance. Prefer this over the full asset list when you only
+        need symbol / contract / issuer.
+      operationId: listAssetDTOs
+      responses:
+        "200":
+          description: Asset DTO list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/asset/dto/{id}:
+    get:
+      tags: [Business]
+      summary: Get asset DTO by ID
+      operationId: getAssetDtoById
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Single asset DTO.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/business/asset/{id}:
+    get:
+      tags: [Business]
+      summary: Get asset by ID
+      operationId: getAssetById
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Full asset record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Wallet ─────────────────────────────────────────────────────────────
+
+  /v1/business/wallet:
+    post:
+      tags: [Business]
+      summary: Create a wallet
+      description: |
+        Proxies to `POST /api/v1/wallet/wallets` on the Business API.
+      operationId: createWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Wallet creation payload (forwarded verbatim to upstream).
+      responses:
+        "200":
+          description: Wallet created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/wallet/type:
+    get:
+      tags: [Business]
+      summary: List wallet types
+      operationId: listWalletTypes
+      responses:
+        "200":
+          description: All wallet types.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/wallet/all:
+    get:
+      tags: [Business]
+      summary: List all wallets
+      operationId: listAllWallets
+      responses:
+        "200":
+          description: All wallets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/wallet/dto/{id}:
+    get:
+      tags: [Business]
+      summary: Get wallet DTO by ID
+      operationId: getWalletDtoById
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Single wallet DTO.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/business/wallet/association/{id}:
+    get:
+      tags: [Business]
+      summary: List wallets by association
+      description: |
+        Returns wallets belonging to the specified association.
+      operationId: listWalletsByAssociation
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Wallets for the association.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/wallet/{id}:
+    get:
+      tags: [Business]
+      summary: Get wallet by ID
+      operationId: getWalletById
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Single wallet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Business]
+      summary: Update wallet
+      operationId: updateWallet
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Wallet update payload (forwarded verbatim to upstream).
+      responses:
+        "200":
+          description: Wallet updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/business/wallet/{id}/transaction:
+    post:
+      tags: [Business]
+      summary: Execute Stellar transaction
+      description: |
+        Validates inputs, resolves the transaction type (Payment vs Strict
+        Path Receive) from the supplied asset pair, and proxies to the
+        Business API which signs via Bridge1 and submits to Horizon.
+      operationId: executeStellarTransaction
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StellarTxRequest"
+      responses:
+        "200":
+          description: Transaction submitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/stellar/quote:
+    post:
+      tags: [Business]
+      summary: Stellar path-payment quote
+      description: |
+        Proxies a path-payment quote request to the Business API. Both
+        `fromAsset` and `toAsset` are required and must differ.
+      operationId: stellarQuote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StellarQuoteRequest"
+      responses:
+        "200":
+          description: Quote returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Beneficiaries ──────────────────────────────────────────────────────
+
+  /v1/business/beneficiaries/{associationId}:
+    get:
+      tags: [Business]
+      summary: List beneficiaries
+      description: |
+        Proxies to the Business API. Supports `search`, `beneficiary_type`,
+        and `payment_method` query filters.
+      operationId: listBeneficiaries
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Case-insensitive substring match on reference.
+        - name: beneficiary_type
+          in: query
+          schema:
+            type: string
+            enum: [Individual, Business]
+        - name: payment_method
+          in: query
+          schema:
+            type: string
+            enum: [BANK, MOMO, CRYPTO, CARD, CASH, QR, VOUCHER, WALLET]
+      responses:
+        "200":
+          description: Beneficiary list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Business]
+      summary: Create beneficiary
+      description: |
+        Body forwarded verbatim. Minimum required: `beneficiary_type` plus
+        `first_name`/`last_name` (Individual) or `company_name` (Business).
+      operationId: createBeneficiary
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Beneficiary payload (forwarded verbatim to upstream).
+      responses:
+        "200":
+          description: Beneficiary created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/beneficiaries/{associationId}/bulk:
+    post:
+      tags: [Business]
+      summary: Bulk create beneficiaries
+      description: |
+        Each beneficiary is processed independently — individual failures do
+        not roll back the rest of the batch. Response includes a per-row
+        result array.
+      operationId: bulkCreateBeneficiaries
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+      responses:
+        "200":
+          description: Bulk result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/beneficiaries/{associationId}/{id}:
+    get:
+      tags: [Business]
+      summary: Get beneficiary
+      operationId: getBeneficiary
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Single beneficiary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Business]
+      summary: Update beneficiary
+      description: |
+        Replace-style update — all child collections (details, payment
+        destinations, addresses, tags) are deleted and recreated from the
+        request body. Send the full intended state.
+      operationId: updateBeneficiary
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Beneficiary updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Business]
+      summary: Delete beneficiary
+      description: |
+        Hard delete — cascades to detail rows, payment destinations,
+        addresses, and tags.
+      operationId: deleteBeneficiary
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Beneficiary deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/business/beneficiaries/{associationId}/{id}/tags:
+    get:
+      tags: [Business]
+      summary: List beneficiary tags
+      operationId: getBeneficiaryTags
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current tags plus suggested tags.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Business]
+      summary: Replace beneficiary tags
+      description: |
+        Replace-style — the tag array in the body overwrites the existing set.
+      operationId: updateBeneficiaryTags
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Tags replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/business/beneficiaries/{associationId}/{id}/payment-destinations:
+    get:
+      tags: [Business]
+      summary: List payment destinations
+      operationId: listPaymentDestinations
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: method
+          in: query
+          schema:
+            type: string
+            enum: [BANK, MOMO, CRYPTO, CARD, CASH, QR, VOUCHER, WALLET]
+          description: Filter by payment method.
+      responses:
+        "200":
+          description: Payment destinations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Business]
+      summary: Add payment destination
+      description: |
+        The upstream auto-promotes the first destination of a given method to
+        primary when no existing destination carries that method.
+      operationId: addPaymentDestination
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Payment destination payload (forwarded verbatim).
+      responses:
+        "200":
+          description: Destination added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/business/beneficiaries/{associationId}/{id}/payment-destinations/{destId}:
+    put:
+      tags: [Business]
+      summary: Update payment destination
+      operationId: updatePaymentDestination
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: destId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Destination updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Business]
+      summary: Delete payment destination
+      operationId: deletePaymentDestination
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: destId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Destination deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/business/beneficiaries/{associationId}/{id}/payment-destinations/{destId}/primary:
+    put:
+      tags: [Business]
+      summary: Set primary payment destination
+      description: |
+        Marks the destination as primary for its method; the upstream unsets
+        any prior primary for the same method.
+      operationId: setPrimaryPaymentDestination
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: destId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Primary flag updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Transactions ─────────────────────────────────────────────────────
+
+  /v1/transaction/init:
+    post:
+      tags: [Transactions]
+      summary: Initialise a transaction
+      description: |
+        Creates a new transaction reference via transactions-v2.zeam.dotnet.
+        The gateway rejects any caller-supplied body and injects
+        `{"origin":"ApiGateway"}` as the upstream payload.
+      operationId: initTransaction
+      requestBody:
+        description: No body allowed — the gateway injects the payload.
+        content:
+          application/json:
+            schema:
+              type: object
+              maxProperties: 0
+      responses:
+        "201":
+          description: Transaction initialised.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      requestId:
+                        type: string
+                        format: uuid
+                        description: Transaction reference.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Caller sent a request body (not permitted).
+
+  /v1/transaction/status/{transactionId}:
+    get:
+      tags: [Transactions]
+      summary: Get transaction status
+      description: |
+        Returns the current status of a transaction from
+        transactions-v2.zeam.dotnet.
+      operationId: getTransactionStatus
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Transaction UUID or reference.
+      responses:
+        "200":
+          description: Transaction status.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/transaction/load:
+    post:
+      tags: [Transactions]
+      summary: Load a transaction for execution
+      description: |
+        Proxies to transactions-acl.zeam.dotnet. Loads transaction data
+        scoped by the caller's ACL.
+      operationId: loadTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Load request payload (forwarded verbatim to upstream).
+      responses:
+        "200":
+          description: Transaction loaded.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Connect ──────────────────────────────────────────────────────────
+
+  /v1/connect-routes:
+    get:
+      tags: [Connect]
+      summary: List payment routes
+      description: Returns available cross-border payment routes.
+      operationId: listConnectRoutes
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      responses:
+        "200":
+          description: Route list.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-providers:
+    get:
+      tags: [Connect]
+      summary: List providers
+      description: Returns all payment providers.
+      operationId: listConnectProviders
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      responses:
+        "200":
+          description: Provider list.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-providers/{id}:
+    get:
+      tags: [Connect]
+      summary: Get provider by ID
+      operationId: getConnectProvider
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Provider detail.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/connect-countries:
+    get:
+      tags: [Connect]
+      summary: List supported countries
+      description: Returns countries where cross-border routes are available.
+      operationId: listConnectCountries
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      responses:
+        "200":
+          description: Country list.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-assets:
+    get:
+      tags: [Connect]
+      summary: List Connect assets
+      description: Returns assets supported by the Connect platform.
+      operationId: listConnectAssets
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      responses:
+        "200":
+          description: Asset list.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-assets/{id}:
+    get:
+      tags: [Connect]
+      summary: Get Connect asset by ID
+      operationId: getConnectAsset
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Asset detail.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/connect-quote:
+    post:
+      tags: [Connect]
+      summary: Get a payment quote
+      description: |
+        Fixed alias that always proxies to the upstream `quote/send` path.
+        Use this when you want a direction-free quoting surface.
+      operationId: connectQuote
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Quote request payload (forwarded verbatim).
+      responses:
+        "200":
+          description: Quote returned.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-quote/{direction}:
+    post:
+      tags: [Connect]
+      summary: Get a directional payment quote
+      description: |
+        Creates a quote for the specified direction (`send` or `receive`).
+        Upstream returns 402 Payment Required on success (documented).
+      operationId: connectQuoteDirection
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      parameters:
+        - name: direction
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [send, receive]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "402":
+          description: Quote created (Payment Required — documented upstream convention).
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-execute:
+    post:
+      tags: [Connect]
+      summary: Execute a payment
+      description: |
+        Unified execute surface. When `TRANSACTIONS_URL` is configured the
+        gateway first calls transaction/init to obtain a reference, injects
+        it as `reference` in the body, then proxies to Connect `/offramp`.
+      operationId: connectExecute
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Execution payload. `reference` is injected by the gateway.
+      responses:
+        "200":
+          description: Execution result.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-offramp:
+    post:
+      tags: [Connect]
+      summary: Execute an off-ramp
+      description: Proxies to Connect `/offramp`.
+      operationId: connectOfframp
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Off-ramp result.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-onramp:
+    post:
+      tags: [Connect]
+      summary: Execute an on-ramp
+      description: Proxies to Connect `/onramp`.
+      operationId: connectOnramp
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: On-ramp result.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-onramp/cash-in:
+    post:
+      tags: [Connect]
+      summary: On-ramp cash-in
+      description: Proxies to Connect `/onramp/cash-in`.
+      operationId: connectOnrampCashIn
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Cash-in result.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-status/{transaction_id}:
+    get:
+      tags: [Connect]
+      summary: Get Connect transaction status
+      operationId: getConnectStatus
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction status.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/connect-integrators:
+    get:
+      tags: [Connect]
+      summary: Get integrator info
+      description: Returns the integrator record for the authenticated app.
+      operationId: getConnectIntegrator
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      responses:
+        "200":
+          description: Integrator detail.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-platform/health:
+    get:
+      tags: [Connect]
+      summary: Connect platform health
+      description: Returns the health status of the Connect platform.
+      operationId: getConnectPlatformHealth
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      responses:
+        "200":
+          description: Platform health.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-query:
+    post:
+      tags: [Connect]
+      summary: Query available connectors
+      description: |
+        The gateway builds a canonical GraphQL Connectors query against the
+        Connect service. Callers supply `countryISO` and `method` filters;
+        the gateway owns the query shape. Direction is pinned to `OFF_RAMP`.
+
+        Auth: accepts Firebase bearers (no `x-zeam-auth` required) or
+        SEP-10 bearers (`x-zeam-auth` required).
+      operationId: connectQuery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectQueryRequest"
+      responses:
+        "200":
+          description: Connector results (GraphQL envelope).
+          content:
+            application/json:
+              schema:
+                type: object
+                description: "`{data, errors}` GraphQL envelope forwarded verbatim."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/connect-exec/{path}:
+    post:
+      tags: [Connect]
+      summary: Metadata-driven execution
+      description: |
+        Forwards the request to Connect's REST API under the specified path.
+        The path is taken from the GraphQL `execution[].path` field returned
+        by `/v1/connect-query`. Supports POST, GET, PUT, PATCH, DELETE.
+        Absolute URLs are rejected (SSRF guard).
+      operationId: connectExec
+      security:
+        - bearerAuth: []
+          zeamAuth: []
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Relative path from GraphQL execution metadata.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Upstream response (forwarded verbatim).
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Stellar Horizon ──────────────────────────────────────────────────
+
+  /v1/stellar/account/{id}:
+    get:
+      tags: [Stellar]
+      summary: Get Stellar account
+      description: |
+        Proxies to Horizon `GET /accounts/:id`. Returns the full account
+        record (balances, signers, thresholds, data entries, flags).
+      operationId: getStellarAccount
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Horizon account record.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/stellar/account/{id}/transactions:
+    get:
+      tags: [Stellar]
+      summary: List account transactions
+      description: |
+        Proxies to Horizon `GET /accounts/:id/transactions`. Query params
+        are forwarded verbatim for Horizon pagination.
+      operationId: getStellarAccountTransactions
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 10
+          description: Page size.
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Paging token for keyset pagination.
+        - name: include_failed
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include failed transactions.
+      responses:
+        "200":
+          description: Transaction list (Horizon envelope).
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/stellar/transaction/{id}:
+    get:
+      tags: [Stellar]
+      summary: Get Stellar transaction
+      description: |
+        Proxies to Horizon `GET /transactions/:id`. The `id` may be the
+        transaction hash (hex) or the paging token.
+      operationId: getStellarTransaction
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Horizon transaction record.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/stellar/transaction/{id}/effects:
+    get:
+      tags: [Stellar]
+      summary: List transaction effects
+      description: |
+        Proxies to Horizon `GET /transactions/:id/effects`.
+      operationId: getStellarTransactionEffects
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 10
+          description: Page size.
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Paging token.
+      responses:
+        "200":
+          description: Effect list (Horizon envelope).
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Connector discovery ────────────────────────────────────────────────
+
+  /v1/business/beneficiaries/getAvailableConnectors/{associationId}/{beneficiaryId}/{method}:
+    get:
+      tags: [Business]
+      summary: Available connectors for a beneficiary
+      description: |
+        Orchestrates beneficiary lookup (Business API) + connector discovery
+        (Connect GraphQL) to find Connect routes usable for the specified
+        beneficiary's payment destination.
+      operationId: getAvailableConnectors
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: beneficiaryId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: method
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [BANK, MOMO, CRYPTO, CARD, CASH, QR, VOUCHER, WALLET]
+      responses:
+        "200":
+          description: Available connectors.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Applications ───────────────────────────────────────────
+
+  /v1/applications/{association_id}:
+    get:
+      tags: [Applications]
+      summary: List applications for an association
+      description: |
+        Returns all applications belonging to the specified association.
+        Optionally filter by `status` query parameter.
+      operationId: listApplications
+      parameters:
+        - name: association_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, pending_approval, approved, suspended, revoked, rejected]
+      responses:
+        "200":
+          description: Application list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplicationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/application:
+    post:
+      tags: [Applications]
+      summary: Register a new application
+      description: |
+        Persists a new application, generates a Stellar keypair, signs up with
+        the auth service, registers with the Connect gateway, and returns the
+        one-time-visible credentials. Store the `apiKey.secret` and
+        `stellar.secret` immediately — they cannot be retrieved again.
+      operationId: registerApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationRegisterInput"
+      responses:
+        "201":
+          description: Application registered. Contains one-time-visible credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeRegisterResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/application/provision:
+    post:
+      tags: [Applications]
+      summary: Provision a draft application
+      description: |
+        Creates a named draft application record without generating a Stellar
+        keypair, signing up with the auth service, or registering with Connect.
+        The draft has no credentials and no Stellar identity. Call
+        `POST /v1/application/{id}/activate` when ready to issue credentials
+        and complete the registration pipeline.
+      operationId: provisionApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationProvisionInput"
+      responses:
+        "201":
+          description: Draft application created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/application/lookup:
+    get:
+      tags: [Applications]
+      summary: Lookup application by public key
+      description: |
+        Read-only lookup by Stellar public key. Used by downstream middleware
+        to resolve application identity.
+      operationId: lookupApplication
+      parameters:
+        - name: publicKey
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^G[A-Z0-9]{55}$"
+      responses:
+        "200":
+          description: Application found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}:
+    get:
+      tags: [Applications]
+      summary: Get application by ID
+      operationId: getApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Application detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/event:
+    get:
+      tags: [Applications]
+      summary: List application events
+      description: |
+        Returns the audit trail for an application — lifecycle transitions,
+        credential rotations, webhook changes, and authentication outcomes.
+      operationId: listApplicationEvents
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Event history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeEventList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/activate:
+    post:
+      tags: [Applications]
+      summary: Activate a draft application
+      description: |
+        Generates a Stellar keypair, signs up with the auth service, drives
+        SEP-10 `/auth-connect` against the anchor, registers with the Connect
+        gateway, and issues credentials. The application must be in `draft`
+        status with no existing Stellar identity.
+
+        Store `stellar.secret` and `apiKey.secret` immediately — they cannot
+        be retrieved again after this call.
+      operationId: activateApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivateApplicationInput"
+      responses:
+        "201":
+          description: Application activated. Contains one-time-visible credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeRegisterResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+
+  /v1/application/{id}/submit:
+    post:
+      tags: [Applications]
+      summary: Submit application for review
+      description: |
+        Transitions a draft application to `pending_approval`. The application
+        must be in `draft` status.
+      operationId: submitApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Application submitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/application/{id}/approve:
+    post:
+      tags: [Applications]
+      summary: Approve application
+      description: |
+        Approves a `pending_approval` application. The approver must differ
+        from the submitter (two-person rule).
+      operationId: approveApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Application approved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Self-approval denied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/application/{id}/reject:
+    post:
+      tags: [Applications]
+      summary: Reject application
+      operationId: rejectApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransitionInput"
+      responses:
+        "200":
+          description: Application rejected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/suspend:
+    post:
+      tags: [Applications]
+      summary: Suspend application
+      operationId: suspendApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransitionInput"
+      responses:
+        "200":
+          description: Application suspended.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/resume:
+    post:
+      tags: [Applications]
+      summary: Resume application
+      operationId: resumeApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Application resumed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/revoke:
+    post:
+      tags: [Applications]
+      summary: Revoke application
+      description: |
+        Terminally revokes an application. This cannot be undone.
+      operationId: revokeApplication
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransitionInput"
+      responses:
+        "200":
+          description: Application revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeApplication"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/rotate-credential:
+    post:
+      tags: [Applications]
+      summary: Rotate application credential
+      description: |
+        Issues a new API credential and marks the previous one as rotating.
+        The returned `secret` is one-time-visible — store it immediately.
+      operationId: rotateApplicationCredential
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "201":
+          description: New credential issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAPIKey"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/token:
+    post:
+      tags: [Applications]
+      summary: Token smoke test
+      description: |
+        Drives the SEP-10 `/auth-connect` flow on the upstream service and
+        verifies the `x-connect-integrator` claim. Use this to confirm your
+        application's credentials are working end-to-end.
+      operationId: tokenSmokeTest
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Token verified.
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/webhook:
+    get:
+      tags: [Applications]
+      summary: List webhooks
+      operationId: listWebhooks
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Webhook list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWebhookList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Applications]
+      summary: Add webhook
+      description: |
+        Registers a new webhook endpoint for the application. A signing secret
+        is generated server-side and returned once — store it immediately.
+      operationId: addWebhook
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddWebhookInput"
+      responses:
+        "201":
+          description: Webhook created with one-time-visible signing secret.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWebhookCreated"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/application/{id}/webhook/{webhookId}:
+    patch:
+      tags: [Applications]
+      summary: Update webhook
+      description: |
+        Partially updates a webhook's URL, method, description, or status.
+      operationId: updateWebhook
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWebhookInput"
+      responses:
+        "200":
+          description: Webhook updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWebhook"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Applications]
+      summary: Delete webhook
+      description: |
+        Soft-deletes a webhook. It will no longer receive events.
+      operationId: deleteWebhook
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Webhook deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/application/{id}/webhook/{webhookId}/rotate-secret:
+    post:
+      tags: [Applications]
+      summary: Rotate webhook secret
+      description: |
+        Generates a new signing secret for a webhook. The previous secret
+        remains valid during a brief rotation window. The returned `secret`
+        is one-time-visible.
+      operationId: rotateWebhookSecret
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: New secret generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWebhookSecret"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Gateway-issued bearer. Source the token from one of:
+
+        - `POST /v1/public/auth/verify-otp` (OTP user principal)
+        - `POST /v1/public/auth-connect` (SEP-10 app principal)
+        - Firebase Auth (end-user mobile/web)
+        - Azure Entra ID (admin/corporate)
+
+        Include as `Authorization: Bearer <token>`.
+    zeamAuth:
+      type: apiKey
+      in: header
+      name: x-zeam-auth
+      description: |
+        App API key for the Connect route group. Combined with SEP-10 bearer
+        (both are required for `/v1/connect-*`).
+  headers:
+    XRequestId:
+      description: Opaque request correlation ID propagated on every response.
+      schema:
+        type: string
+        example: req_01HWX9YZ7T5K8QF3NSDE9B2M0P
+  responses:
+    BadRequest:
+      description: Request body or query parameters failed validation.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EnvelopeError"
+    Unauthorized:
+      description: Missing, expired, or invalid credential.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EnvelopeError"
+    NotFound:
+      description: Resource not found.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EnvelopeError"
+    Conflict:
+      description: Conflicting state (e.g. OTP code already consumed).
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EnvelopeError"
+    BadGateway:
+      description: |
+        An upstream service (auth, anchor, Connect gateway) returned an
+        error or was unreachable. Retry with backoff.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EnvelopeError"
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Resource UUID.
+  schemas:
+    EnvelopeHealth:
+      type: object
+      required: [ok, request_id, resource, verb, data]
+      properties:
+        ok:
+          type: boolean
+        request_id:
+          type: string
+        resource:
+          type: string
+          example: health
+        verb:
+          type: string
+          example: get
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ready
+            uptime_ms:
+              type: integer
+              format: int64
+            version:
+              type: string
+            db:
+              type: string
+              enum: [ok, error]
+    EnvelopeError:
+      type: object
+      description: |
+        Standard error envelope. Mirrors the success envelope shape but
+        `data` is always `null` and `message` encodes "code: description".
+      required: [data, status, message]
+      properties:
+        data:
+          example: null
+          description: Always null for error responses.
+        status:
+          type: integer
+          description: Mirrors the HTTP status code.
+          examples: [400, 401, 404, 409, 422, 500]
+        message:
+          type: string
+          description: "Format: 'code: description'."
+          examples:
+            - "invalid_input: field required"
+            - "unauthorized: missing bearer token"
+            - "not_found: resource not found"
+    BusinessResponse:
+      type: object
+      description: |
+        Standard Business API response envelope. The `data` field carries the
+        domain-specific payload (array or object depending on the endpoint).
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          description: Domain-specific payload (proxied verbatim from upstream).
+    AssociationViewModel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        associationName:
+          type: string
+        typeName:
+          type: string
+        identityName:
+          type: string
+        publicKey:
+          type: string
+        typeId:
+          type: string
+        signerId:
+          type: string
+        creatorIdentityId:
+          type: string
+        status:
+          type: string
+        merchant:
+          type: boolean
+    AssetResult:
+      type: object
+      description: Asset enriched with bridge/network data.
+      properties:
+        id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: USDC
+        name:
+          type: string
+        type:
+          type: string
+          example: token
+        decimals:
+          type: integer
+        contractAddress:
+          type: string
+        issuerAddress:
+          type: string
+    AssetDTO:
+      type: object
+      description: Minimal asset record.
+      properties:
+        assetID:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        contractAddress:
+          type: string
+        issuerAddress:
+          type: string
+    WalletType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        productId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        custodyType:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WalletModel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        walletName:
+          type: string
+        binId:
+          type: string
+          format: uuid
+        typeId:
+          type: string
+          format: uuid
+        networkId:
+          type: string
+          format: uuid
+        publicKey:
+          type: string
+        accountNumber:
+          type: string
+        sequenceNumber:
+          type: integer
+        custodial:
+          type: boolean
+        hasMultipleSigners:
+          type: boolean
+        vaultId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WalletDTO:
+      type: object
+      description: Minimal wallet record with association context.
+      properties:
+        id:
+          type: string
+          format: uuid
+        walletName:
+          type: string
+        custodial:
+          type: boolean
+        networkId:
+          type: string
+          format: uuid
+        publicKey:
+          type: string
+        typeId:
+          type: string
+          format: uuid
+        accountNumber:
+          type: string
+        associationId:
+          type: string
+          format: uuid
+        associationName:
+          type: string
+    BeneficiaryModel:
+      type: object
+      description: Full beneficiary record with type-specific details.
+      properties:
+        id:
+          type: string
+          format: uuid
+        association_id:
+          type: string
+          format: uuid
+        beneficiary_type:
+          type: string
+          enum: [Individual, Business]
+        reference:
+          type: string
+        individual:
+          $ref: "#/components/schemas/BeneficiaryIndividual"
+        business:
+          $ref: "#/components/schemas/BeneficiaryBusiness"
+        payment_destinations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentDestination"
+        addresses:
+          type: array
+          items:
+            type: object
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              tag:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BeneficiaryIndividual:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        id_number:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+        nationality:
+          type: string
+          description: ISO 3166-1 alpha-2.
+        mobile_number:
+          type: string
+        email:
+          type: string
+    BeneficiaryBusiness:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_name:
+          type: string
+        registration_number:
+          type: string
+        country_of_registration:
+          type: string
+        tax_id:
+          type: string
+        industry:
+          type: string
+        contact_person_name:
+          type: string
+        contact_number:
+          type: string
+        contact_email:
+          type: string
+    PaymentDestination:
+      type: object
+      description: |
+        A payment endpoint for a beneficiary. Fields populated depend on
+        the `method` (BANK, MOMO, CRYPTO, etc.).
+      properties:
+        id:
+          type: string
+          format: uuid
+        method:
+          type: string
+          enum: [BANK, MOMO, CRYPTO, CARD, CASH, QR, VOUCHER, WALLET]
+        label:
+          type: string
+        is_primary:
+          type: boolean
+        country_iso:
+          type: string
+        currency_code:
+          type: string
+        bank_name:
+          type: string
+        account_number:
+          type: string
+        account_name:
+          type: string
+        sort_code:
+          type: string
+        iban:
+          type: string
+        swift_bic:
+          type: string
+        mobile_number:
+          type: string
+        mobile_provider:
+          type: string
+        network_name:
+          type: string
+        asset_symbol:
+          type: string
+        wallet_address:
+          type: string
+    BeneficiaryRequest:
+      type: object
+      required: [beneficiary_type]
+      description: |
+        Create or update a beneficiary. Include `individual` details for
+        type `Individual`, or `business` details for type `Business`.
+      properties:
+        beneficiary_type:
+          type: string
+          enum: [Individual, Business]
+        reference:
+          type: string
+        individual:
+          type: object
+          properties:
+            first_name:
+              type: string
+            last_name:
+              type: string
+            id_number:
+              type: string
+            date_of_birth:
+              type: string
+              format: date
+            nationality:
+              type: string
+            mobile_number:
+              type: string
+            email:
+              type: string
+        business:
+          type: object
+          properties:
+            company_name:
+              type: string
+            registration_number:
+              type: string
+            country_of_registration:
+              type: string
+            tax_id:
+              type: string
+            industry:
+              type: string
+            contact_person_name:
+              type: string
+            contact_number:
+              type: string
+            contact_email:
+              type: string
+        payment_destinations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentDestinationRequest"
+        tags:
+          type: array
+          items:
+            type: string
+    PaymentDestinationRequest:
+      type: object
+      required: [method]
+      properties:
+        method:
+          type: string
+          enum: [BANK, MOMO, CRYPTO, CARD, CASH, QR, VOUCHER, WALLET]
+        label:
+          type: string
+        is_primary:
+          type: boolean
+        country_iso:
+          type: string
+        currency_code:
+          type: string
+        bank_name:
+          type: string
+        bank_code:
+          type: string
+        account_number:
+          type: string
+        account_name:
+          type: string
+        sort_code:
+          type: string
+        iban:
+          type: string
+        swift_bic:
+          type: string
+        mobile_number:
+          type: string
+        mobile_provider:
+          type: string
+        wallet_address:
+          type: string
+    BulkCreateResult:
+      type: object
+      properties:
+        index:
+          type: integer
+        success:
+          type: boolean
+        beneficiary_id:
+          type: string
+          format: uuid
+        error:
+          type: string
+    TagsResponseData:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+        suggested_tags:
+          type: array
+          items:
+            type: string
+    RequestOtpInput:
+      type: object
+      required: [mobileNumber]
+      properties:
+        mobileNumber:
+          type: string
+          description: E.164 mobile number that will receive the OTP.
+          example: "+27821234567"
+    RequestOtpResult:
+      type: object
+      required: [requestId]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: Opaque handle to replay on verification.
+    VerifyOtpInput:
+      type: object
+      required: [requestId, code]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID from the request-otp response.
+        code:
+          type: string
+          description: One-time code received via WhatsApp/SMS.
+          example: "1234"
+    TokenPair:
+      type: object
+      required: [idToken, refreshToken, expiresIn]
+      properties:
+        idToken:
+          type: string
+          description: Gateway bearer for `/v1/*` routes.
+        refreshToken:
+          type: string
+          description: Long-lived refresh token.
+        expiresIn:
+          type: string
+          description: TTL in seconds as a string (e.g. "3600").
+          example: "3600"
+        customToken:
+          type: string
+          description: Optional Firebase custom token.
+    Association:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, pending]
+    StellarTxRequest:
+      type: object
+      required: [toPublicKey, fromAsset, amount]
+      properties:
+        toPublicKey:
+          type: string
+          pattern: "^G[A-Z0-9]{55}$"
+          description: Destination Stellar account.
+        fromAsset:
+          type: string
+          description: "`XLM`, `native`, or `CODE:ISSUER`."
+          example: "USDC:GA5ZSE..."
+        toAsset:
+          type: string
+          description: "Optional destination asset. When omitted or equal to `fromAsset`, a plain Payment is used; otherwise Strict Path Receive."
+        amount:
+          type: string
+          description: Decimal amount (up to 7 fractional digits, must be > 0).
+          example: "12.3456789"
+        sendMax:
+          type: string
+          description: Maximum source amount for path payments. Populate from a prior `/v1/stellar/quote`.
+        memo:
+          type: string
+          maxLength: 28
+          description: Optional Stellar memo (≤ 28 bytes for Text type).
+        memoType:
+          type: string
+          enum: [Text, Hash, ID]
+          description: "Memo type. Default: Text."
+    StellarQuoteRequest:
+      type: object
+      required: [fromAsset, toAsset, amount]
+      properties:
+        fromAsset:
+          type: string
+          description: Source asset (`XLM`, `native`, or `CODE:ISSUER`).
+        toAsset:
+          type: string
+          description: Destination asset (must differ from `fromAsset`).
+        amount:
+          type: string
+          description: Decimal amount (up to 7 fractional digits, must be > 0).
+    ConnectQueryRequest:
+      type: object
+      required: [countryISO, method]
+      properties:
+        countryISO:
+          type: string
+          description: |
+            ISO 3166-1 alpha-2 country code. Uppercase ASCII letters only.
+          example: ZW
+        method:
+          type: string
+          description: |
+            Payment method filter. Uppercase ASCII letters, digits, and
+            underscores.
+          example: MOBILE_MONEY
+    ApplicationProvisionInput:
+      type: object
+      required: [associationId, applicationName]
+      description: |
+        Minimal payload to create a named draft. No credentials are issued at
+        this stage — call `POST /v1/application/{id}/activate` to complete
+        the registration pipeline.
+      properties:
+        associationId:
+          type: string
+          format: uuid
+          description: Association this application belongs to.
+        applicationName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable name for the application.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Optional credential expiry. Omit for no expiry.
+    ActivateApplicationInput:
+      type: object
+      description: |
+        All fields are optional. Provide a `webhookUrl` to register a webhook
+        during activation. `settlementAccount` overrides the platform default.
+      properties:
+        webhookUrl:
+          type: string
+          format: uri
+          description: Optional webhook endpoint to register on activation.
+        webhookMethod:
+          type: string
+          enum: [POST, PUT]
+          default: POST
+          description: HTTP method for webhook delivery.
+        settlementAccount:
+          $ref: "#/components/schemas/SettlementAccountInput"
+    SettlementAccountInput:
+      type: object
+      description: Settlement account override for Connect integration.
+      required: [publicKey, vaultId]
+      properties:
+        publicKey:
+          type: string
+          pattern: "^G[A-Z0-9]{55}$"
+          description: Stellar public key of the settlement account.
+        vaultId:
+          type: string
+          format: uuid
+          description: Azure Key Vault secret ID for the settlement account seed.
+    ApplicationRegisterInput:
+      type: object
+      required: [associationId, applicationName]
+      properties:
+        associationId:
+          type: string
+          format: uuid
+          description: Association this application belongs to.
+        applicationName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable name for the application.
+        webhookUrl:
+          type: string
+          format: uri
+          description: Optional webhook endpoint to register on creation.
+        webhookMethod:
+          type: string
+          enum: [POST, PUT]
+          description: HTTP method for webhook delivery.
+        settlementAccount:
+          $ref: "#/components/schemas/SettlementAccountInput"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Optional expiry. Omit for no expiry.
+    ApplicationViewModel:
+      type: object
+      description: Read-side representation of an application.
+      properties:
+        id:
+          type: string
+          format: uuid
+        associationId:
+          type: string
+          format: uuid
+        applicationName:
+          type: string
+        classificationCode:
+          type: string
+          example: PARTNER_PSP
+        publicKey:
+          type: string
+          description: Stellar public key (G...). Null for unactivated drafts.
+        environment:
+          type: string
+          enum: [sandbox, production]
+        status:
+          type: string
+          enum: [draft, pending_approval, approved, suspended, revoked, rejected, expired]
+        activated:
+          type: boolean
+          description: Whether the application has a Stellar identity.
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RegisterApplicationResponse:
+      type: object
+      description: |
+        Returned on successful registration. Contains one-time-visible
+        credentials that cannot be retrieved again.
+      properties:
+        application:
+          $ref: "#/components/schemas/ApplicationViewModel"
+        integratorId:
+          type: string
+        stellar:
+          $ref: "#/components/schemas/StellarKeyMaterial"
+        apiKey:
+          $ref: "#/components/schemas/APIKeyMaterial"
+        webhookSecret:
+          $ref: "#/components/schemas/WebhookSecretMaterial"
+        connectSecret:
+          type: string
+          writeOnly: true
+        warnings:
+          type: array
+          items:
+            type: string
+    StellarKeyMaterial:
+      type: object
+      description: One-time-visible Stellar keypair. Returned only at registration/activation time.
+      properties:
+        publicKey:
+          type: string
+          pattern: "^G[A-Z0-9]{55}$"
+          description: Stellar public key (G...).
+        secret:
+          type: string
+          writeOnly: true
+          description: Stellar seed (S...). Store securely — never returned again.
+        vaultId:
+          type: string
+          format: uuid
+          description: Azure Key Vault secret ID under which the seed is stored.
+    APIKeyMaterial:
+      type: object
+      description: One-time-visible API key credential.
+      properties:
+        keyId:
+          type: string
+          description: Stable key identifier (safe to store/log).
+        secret:
+          type: string
+          writeOnly: true
+          description: Raw secret — store securely, never returned again.
+        last4:
+          type: string
+          description: Last 4 characters of the secret for identification.
+    WebhookSecretMaterial:
+      type: object
+      description: One-time-visible webhook signing secret.
+      properties:
+        webhookId:
+          type: string
+          format: uuid
+        secret:
+          type: string
+          writeOnly: true
+          description: Raw signing secret — store securely.
+        last4:
+          type: string
+    ApplicationWebhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        webhookMethod:
+          type: string
+          enum: [POST, PUT]
+        description:
+          type: string
+        authScheme:
+          type: string
+          enum: [none, bearer, hmac]
+        status:
+          type: string
+          enum: [pending_verification, active, paused, disabled, revoked]
+        failureCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AccessEvent:
+      type: object
+      description: Audit trail entry.
+      properties:
+        id:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          example: approved
+        outcome:
+          type: string
+          enum: [success, denied, error]
+        reason:
+          type: string
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+    TransitionInput:
+      type: object
+      description: Optional reason for lifecycle transitions (reject, suspend, revoke).
+      properties:
+        reason:
+          type: string
+    AddWebhookInput:
+      type: object
+      required: [url, webhookMethod, authScheme]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The endpoint URL that will receive events.
+        webhookMethod:
+          type: string
+          enum: [POST, PUT]
+        description:
+          type: string
+        authScheme:
+          type: string
+          enum: [none, bearer, hmac]
+          description: Signing scheme. `hmac` is recommended.
+    UpdateWebhookInput:
+      type: object
+      description: Partial update — include only fields to change.
+      properties:
+        url:
+          type: string
+          format: uri
+        webhookMethod:
+          type: string
+          enum: [POST, PUT]
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending_verification, active, paused, disabled, revoked]
+    EnvelopeApplication:
+      type: object
+      description: Standard envelope wrapping a single application.
+      properties:
+        data:
+          $ref: "#/components/schemas/ApplicationViewModel"
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+    EnvelopeApplicationList:
+      type: object
+      description: Standard envelope wrapping an application array.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApplicationViewModel"
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+    EnvelopeRegisterResponse:
+      type: object
+      description: Standard envelope wrapping the registration result.
+      properties:
+        data:
+          $ref: "#/components/schemas/RegisterApplicationResponse"
+        status:
+          type: integer
+          example: 201
+        message:
+          type: string
+    EnvelopeEventList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessEvent"
+        status:
+          type: integer
+        message:
+          type: string
+    EnvelopeWebhookList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApplicationWebhook"
+        status:
+          type: integer
+        message:
+          type: string
+    EnvelopeWebhook:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ApplicationWebhook"
+        status:
+          type: integer
+        message:
+          type: string
+    EnvelopeWebhookCreated:
+      type: object
+      description: Webhook with one-time-visible signing secret.
+      properties:
+        data:
+          type: object
+          properties:
+            webhook:
+              $ref: "#/components/schemas/ApplicationWebhook"
+            secret:
+              $ref: "#/components/schemas/WebhookSecretMaterial"
+        status:
+          type: integer
+        message:
+          type: string
+    EnvelopeWebhookSecret:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebhookSecretMaterial"
+        status:
+          type: integer
+        message:
+          type: string
+    EnvelopeAPIKey:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/APIKeyMaterial"
+        status:
+          type: integer
+        message:
+          type: string
+          format: date-time
