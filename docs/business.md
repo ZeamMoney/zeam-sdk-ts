@@ -22,7 +22,7 @@ Methods sit flat on `BusinessClient` but are implemented in domain subfolders:
 
 ```
 src/client/business/
-  index.ts                 ← BusinessClient (assembles all methods + stellarQuote)
+  index.ts                 ← BusinessClient (assembles all methods)
   associations/index.ts    ← associationMethods()
   assets/index.ts          ← assetMethods()
   wallets/index.ts         ← walletMethods()
@@ -90,16 +90,6 @@ Returns `Association[]` and `Association` respectively.
   transactionDescription, amount, asset, createdAt
 }
 ```
-
----
-
-## Stellar quote
-
-| Method | Endpoint |
-|---|---|
-| `stellarQuote(session, input)` | `POST /v1/stellar/quote` |
-
-Validates both `fromAsset` and `toAsset` strings locally before the network call (throws on malformed asset format).
 
 ---
 

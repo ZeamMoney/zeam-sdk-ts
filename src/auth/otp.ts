@@ -70,6 +70,46 @@ export class OTPFlow {
   }
 
   /**
+   * Start the sign-up OTP flow. Returns the opaque requestId the caller
+   * must echo back on verifySignUp.
+   */
+  async requestSignUp(input: { mobileNumber: string }): Promise<ChallengeResponse> {
+    if (!input.mobileNumber) throw new Error("auth: mobileNumber is required");
+    const out = await this.post<ChallengeResponse>("/v1/public/auth/sign-up", input);
+    if (!out.requestId) throw new Error("auth: upstream did not return a requestId");
+    return out;
+  }
+
+  /**
+   * Exchange a sign-up OTP code for a Business session.
+   */
+  async verifySignUp(input: { requestId: string; code: string; subject?: string }): Promise<Session> {
+    if (!input.requestId || !input.code) {
+      throw new Error("auth: requestId and code are required");
+    }
+    const resp = await this.post<VerifyResponse>("/v1/public/auth/sign-up/verify", {
+      requestId: input.requestId,
+      code: input.code,
+    });
+    return new Session({
+      track: Track.Business,
+      idToken: resp.idToken,
+      refreshToken: resp.refreshToken,
+      expiresAt: expiryFromExpiresIn(resp.expiresIn),
+      subject: input.subject,
+    });
+  }
+
+  /**
+   * Re-send the OTP for an existing requestId. Works for both sign-in
+   * and sign-up flows.
+   */
+  async resendOTP(input: { requestId: string }): Promise<void> {
+    if (!input.requestId) throw new Error("auth: requestId is required");
+    await this.post<unknown>("/v1/public/auth/resend-otp", { requestId: input.requestId });
+  }
+
+  /**
    * Refresh a Business session. Satisfies [Refresher].
    */
   async refresh(session: Session): Promise<Session> {

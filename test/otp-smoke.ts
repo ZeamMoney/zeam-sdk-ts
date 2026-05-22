@@ -123,6 +123,14 @@ async function main(): Promise<void> {
 
   if (!requestId) { process.exit(1); }
 
+  // ── resendOTP ──────────────────────────────────────────────────────────────
+  section("resendOTP");
+
+  try {
+    await client.otp.resendOTP({ requestId });
+    pass("client.otp.resendOTP()");
+  } catch (err) { fail("client.otp.resendOTP()", err); }
+
   // ── verifyOTP ──────────────────────────────────────────────────────────────
   section("verifyOTP");
 
@@ -144,6 +152,36 @@ async function main(): Promise<void> {
     const refreshed = await client.otp.refresh(session);
     pass("client.otp.refresh()", `fingerprint=${refreshed.fingerprint}`);
   } catch (err) { fail("client.otp.refresh()", err); }
+
+  // ── sign-up flow (optional) ────────────────────────────────────────────────
+  const signupMobile = process.env.ZEAM_TEST_SIGNUP_MOBILE;
+  if (signupMobile) {
+    // requestSignUp
+    section("requestSignUp");
+
+    let signupRequestId: string | undefined;
+    try {
+      const challenge = await client.otp.requestSignUp({ mobileNumber: signupMobile });
+      signupRequestId = challenge.requestId;
+      pass("client.otp.requestSignUp()", `requestId=${signupRequestId}`);
+    } catch (err) { fail("client.otp.requestSignUp()", err); }
+
+    if (signupRequestId) {
+      // verifySignUp
+      section("verifySignUp");
+
+      const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const signupCode = (await rl2.question(`\n  ${YELLOW}?${RESET} Sign-up OTP code: `)).trim();
+      rl2.close();
+
+      try {
+        const signupSess = await client.otp.verifySignUp({ requestId: signupRequestId, code: signupCode });
+        pass("client.otp.verifySignUp()", `fingerprint=${signupSess.fingerprint}`);
+      } catch (err) { fail("client.otp.verifySignUp()", err); }
+    }
+  } else {
+    console.log(`\n${DIM}sign-up flow skipped — set ZEAM_TEST_SIGNUP_MOBILE=+<number> to enable${RESET}`);
+  }
 
   // ── summary ────────────────────────────────────────────────────────────────
   console.log(`\n\n${"═".repeat(64)}`);

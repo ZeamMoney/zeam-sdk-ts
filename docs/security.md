@@ -30,7 +30,7 @@ Email **security@zeam.app**. Do not open public issues.
 
 ## Stability contract
 
-- **Public** entry points: `@zeammoney/sdk`, `/auth`, `/stellar`,
+- **Public** entry points: `@zeammoney/sdk`, `/auth`,
   `/recipes`, `/webhook`, `/client/*`.
 - **Private**: `src/internal/**` and `src/transport/**`. Changes here
   are never considered breaking under semver.

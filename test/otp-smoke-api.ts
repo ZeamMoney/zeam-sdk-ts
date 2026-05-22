@@ -113,7 +113,17 @@ async function main(): Promise<void> {
   }
   pass("requestOTP", `requestId=${requestId}`);
 
-  // ── 2. verifyOTP ───────────────────────────────────────────────────────────
+  // ── 2. resendOTP ───────────────────────────────────────────────────────────
+  section("resendOTP");
+
+  const resendResp = await call("POST", "/v1/public/auth/resend-otp", "", { requestId });
+  if (resendResp.status >= 300) {
+    fail("resendOTP", `status=${resendResp.status}`);
+  } else {
+    pass("resendOTP", `requestId=${requestId}`);
+  }
+
+  // ── 3. verifyOTP ───────────────────────────────────────────────────────────
   section("verifyOTP");
 
   const code = (await rl.question(`\n  ${YELLOW}?${RESET} OTP code: `)).trim();
@@ -128,7 +138,7 @@ async function main(): Promise<void> {
   }
   pass("verifyOTP", `token=…${idToken.slice(-8)}`);
 
-  // ── 3. refresh ─────────────────────────────────────────────────────────────
+  // ── 4. refresh ─────────────────────────────────────────────────────────────
   section("refresh");
 
   const refreshResp = await call("POST", "/v1/public/auth/refresh", "", { refreshToken });
@@ -138,6 +148,41 @@ async function main(): Promise<void> {
     fail("refresh", `status=${refreshResp.status}`);
   } else {
     pass("refresh", `token=…${newIdToken.slice(-8)}`);
+  }
+
+  // ── 5-6. sign-up flow (optional) ──────────────────────────────────────────
+  const signupMobile = process.env.ZEAM_TEST_SIGNUP_MOBILE;
+  if (signupMobile) {
+    // 5. requestSignUp
+    section("requestSignUp");
+
+    const signupResp = await call("POST", "/v1/public/auth/sign-up", "", { mobileNumber: signupMobile });
+    const signupRequestId = (signupResp.data as { data?: { requestId?: string } })?.data?.requestId;
+    if (!signupRequestId) {
+      fail("requestSignUp", "no requestId in response");
+    } else {
+      pass("requestSignUp", `requestId=${signupRequestId}`);
+
+      // 6. verifySignUp
+      section("verifySignUp");
+
+      const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const signupCode = (await rl2.question(`\n  ${YELLOW}?${RESET} Sign-up OTP code: `)).trim();
+      rl2.close();
+
+      const signupVerifyResp = await call("POST", "/v1/public/auth/sign-up/verify", "", {
+        requestId: signupRequestId,
+        code: signupCode,
+      });
+      const signupIdToken = (signupVerifyResp.data as { data?: { idToken?: string } })?.data?.idToken;
+      if (!signupIdToken || signupVerifyResp.status >= 300) {
+        fail("verifySignUp", `status=${signupVerifyResp.status}`);
+      } else {
+        pass("verifySignUp", `token=…${signupIdToken.slice(-8)}`);
+      }
+    }
+  } else {
+    console.log(`\n${DIM}sign-up flow skipped — set ZEAM_TEST_SIGNUP_MOBILE=+<number> to enable${RESET}`);
   }
 
   // ── summary ────────────────────────────────────────────────────────────────

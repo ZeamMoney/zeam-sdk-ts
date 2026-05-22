@@ -18,8 +18,6 @@ contract. Server-side only (Node 22+, Deno, Bun).
 - **Recipes** — opinionated end-to-end workflows for the 80% happy path.
 - Automatic authentication lifecycle management (acquisition,
   single-flight refresh, cross-track isolation, secure storage).
-- A narrow wrapper over the Stellar SDK (partners don't import
-  `@stellar/stellar-sdk` directly).
 - Inbound webhook HMAC verification with replay protection.
 
 ## Server-side only

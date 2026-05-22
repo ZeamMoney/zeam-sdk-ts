@@ -10,8 +10,6 @@ export default defineConfig({
     "src/client/business/index.ts",
     "src/client/connect/index.ts",
     "src/client/health/index.ts",
-    "src/client/payments/index.ts",
-    "src/client/reports/index.ts",
   ],
   format: ["esm", "cjs"],
   dts: true,

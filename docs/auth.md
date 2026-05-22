@@ -3,8 +3,8 @@
 The gateway has two independent authentication tracks:
 
 - **Business** — end-user OTP / Firebase. Used by `/v1/business/*`,
-  `/v1/application/*`, `/v1/payments`, `/v1/reports/*`.
-- **Connect** — per-application SEP-10. Used by `/v1/connect-*`.
+  `/v1/application/*`.
+- **Connect** — per-application sign-in. Used by `/v1/connect-*`.
 
 **Tokens are not interchangeable.** The SDK refuses to attach a Business
 token to a Connect call (and vice versa) via the `Track` enum.
@@ -31,24 +31,21 @@ Under the hood:
 4. The session is stored in the client's `tokenStore` (default:
    `MemoryStore`).
 
-## Connect SEP-10
+## Connect sign-in
 
 ```ts
 import { connectLogin } from "@zeammoney/sdk/recipes";
 
 const session = await connectLogin(client, {
-  stellarSeed: vaultStellarSeed,
   publicKey: appPublicKey,
+  secret: vaultApplicationSecret,
 });
 ```
 
 Under the hood:
 
-1. `GET /auth-connect?account=<publicKey>` → challenge XDR.
-2. Sign the challenge locally with the seed (the seed never leaves the
-   caller's process).
-3. `POST /auth-connect` with the signed XDR → `{ idToken, refreshToken, expiresIn }`.
-4. Persist the session.
+1. `POST /v1/public/auth-connect/sign-in` with `{ publicKey, secret }` → `{ idToken, refreshToken, expiresIn }`.
+2. Persist the session.
 
 ## Refresh lifecycle
 
@@ -163,6 +160,6 @@ npx vitest run src/auth/auth.test.ts
 # Live OTP smoke test (interactive — reads OTP from stdin)
 ZEAM_TEST_MOBILE=+27821234567 npx tsx test/otp-smoke.ts
 
-# Live SEP-10 smoke test (requires Stellar seed + public key)
-ZEAM_TEST_APP_SEED=S... ZEAM_TEST_APP_PUBKEY=G... npx tsx test/sep10-smoke.ts
+# Live Connect sign-in smoke test (requires application public key + secret)
+ZEAM_TEST_APP_PUBKEY=G... ZEAM_TEST_APP_SECRET=S... npx tsx test/connect/401-refresh-smoke.ts
 ```
