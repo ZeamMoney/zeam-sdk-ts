@@ -26,11 +26,6 @@
       "import": "./dist/auth/index.js",
       "require": "./dist/auth/index.cjs"
     },
-    "./stellar": {
-      "types": "./dist/stellar/index.d.ts",
-      "import": "./dist/stellar/index.js",
-      "require": "./dist/stellar/index.cjs"
-    },
     "./recipes": {
       "types": "./dist/recipes/index.d.ts",
       "import": "./dist/recipes/index.js",
@@ -60,16 +55,6 @@
       "types": "./dist/client/health/index.d.ts",
       "import": "./dist/client/health/index.js",
       "require": "./dist/client/health/index.cjs"
-    },
-    "./client/payments": {
-      "types": "./dist/client/payments/index.d.ts",
-      "import": "./dist/client/payments/index.js",
-      "require": "./dist/client/payments/index.cjs"
-    },
-    "./client/reports": {
-      "types": "./dist/client/reports/index.d.ts",
-      "import": "./dist/client/reports/index.js",
-      "require": "./dist/client/reports/index.cjs"
     }
   },
   "files": [
@@ -110,7 +95,6 @@
   "keywords": [
     "zeam",
     "sdk",
-    "stellar",
     "payments",
     "api-gateway"
   ],

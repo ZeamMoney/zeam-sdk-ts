@@ -14,4 +14,4 @@ export const MIN_GATEWAY_VERSION = "0.1.0";
  * assertion in internal/wire verifies this matches the checked-in spec
  * to prevent silent drift.
  */
-export const SPEC_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
+export const SPEC_HASH = "91d15af2540264e390be25b3c3a529d5305a8324ceb08d31d2d70573d1395d8c";

@@ -1,6 +1,6 @@
 import type { Session } from "../auth/index.js";
 import type { Client } from "../client.js";
-import { ApplicationClient } from "../client/application/index.js";
+import { ApplicationClient, type RegisterApplicationInput } from "../client/application/index.js";
 
 /**
  * Credentials that `POST /v1/application` returns exactly once.
@@ -18,8 +18,7 @@ export interface OneTimeSecrets {
 
 export interface RegisterAppInput {
   session: Session;
-  /** Shape is upstream-owned; forwarded through the gateway unchanged. */
-  payload: unknown;
+  payload: RegisterApplicationInput;
   captureOneTimeSecrets: (secrets: OneTimeSecrets) => Promise<void> | void;
   signal?: AbortSignal;
 }
@@ -53,14 +52,17 @@ export async function registerApplication(
 
   const app = new ApplicationClient(client);
   const resp = await app.register(input.session, input.payload, input.signal);
+  // register() throws if webhookSecret is absent (webhookUrl is required in the input).
+  const { webhookSecret } = resp;
+  if (!webhookSecret) throw new Error("recipes: registration response missing webhookSecret");
 
   const secrets: OneTimeSecrets = {
-    stellarSeed: resp.stellar.secret,
-    stellarPublicKey: resp.stellar.publicKey,
-    connectSecret: resp.connectSecret,
-    apiKey: resp.apiKey.secret,
-    webhookSecret: resp.webhookSecret.secret,
-    webhookId: resp.webhookSecret.webhookId,
+    stellarSeed: resp.stellar?.secret ?? "",
+    stellarPublicKey: resp.stellar?.publicKey ?? "",
+    connectSecret: resp.connectSecret ?? "",
+    apiKey: resp.apiKey?.secret ?? "",
+    webhookSecret: webhookSecret.secret ?? "",
+    webhookId: webhookSecret.webhookId ?? "",
   };
 
   try {
@@ -71,20 +73,20 @@ export async function registerApplication(
     secrets.connectSecret = "";
     secrets.apiKey = "";
     secrets.webhookSecret = "";
-    resp.stellar.secret = "";
+    if (resp.stellar) resp.stellar.secret = "";
     resp.connectSecret = "";
-    resp.apiKey.secret = "";
-    resp.webhookSecret.secret = "";
+    if (resp.apiKey) resp.apiKey.secret = "";
+    webhookSecret.secret = "";
   }
 
   return {
-    integratorId: resp.integratorId,
+    integratorId: resp.integratorId ?? "",
     application: resp.application,
-    stellarPublicKey: resp.stellar.publicKey,
-    apiKeyId: resp.apiKey.keyId,
-    apiKeyLast4: resp.apiKey.last4,
-    webhookId: resp.webhookSecret.webhookId,
-    webhookLast4: resp.webhookSecret.last4,
+    stellarPublicKey: resp.stellar?.publicKey ?? "",
+    apiKeyId: resp.apiKey?.keyId ?? "",
+    apiKeyLast4: resp.apiKey?.last4 ?? "",
+    webhookId: webhookSecret.webhookId ?? "",
+    webhookLast4: webhookSecret.last4 ?? "",
     warnings: resp.warnings ?? [],
   };
 }

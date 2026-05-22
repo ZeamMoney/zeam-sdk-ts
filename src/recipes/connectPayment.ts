@@ -4,7 +4,6 @@ import {
   BusinessClient,
   type Association,
   type Beneficiary,
-  type StellarQuote,
   type Wallet,
 } from "../client/business/index.js";
 import {
@@ -13,27 +12,26 @@ import {
   type ExecuteResponse,
   type QuoteResponse,
 } from "../client/connect/index.js";
-import { Keypair, parseAsset, type Asset, assetString, assetsEqual } from "../stellar/index.js";
 
 export interface ConnectPaymentInput {
   /** Authenticated Business session (typically from `loginOTP`). */
   businessSession: Session;
-  /** Stellar credentials captured at registration. */
-  applicationSeed: string;
+  /** Application credentials captured at registration. */
+  applicationSecret: string;
   applicationPublicKey: string;
   /** Chosen association (Step 1). */
   associationId: string;
   /** Chosen wallet (Step 2). */
   walletId: string;
-  /** The asset the wallet holds and will debit. */
-  fundingAsset: Asset;
+  /** The asset the wallet holds and will debit, e.g. "USDC:GABC...". */
+  fundingAsset: string;
   /** Beneficiary (Step 3). */
   beneficiaryId: string;
   /** Must match the gateway enum regex and the beneficiary destination. */
   method: string;
   countryISO: string;
-  /** Amount in the Connect-quoted accepted asset. Max 7 fractional digits. */
-  sendAmount: string;
+  /** Amount to send (in the connector's accepted asset). */
+  sendAmount: number;
   memo?: string;
   memoType?: "Text" | "Hash" | "ID";
   /** Partner-supplied connect secret (captured at registration). */
@@ -51,7 +49,7 @@ export interface ConnectPaymentResult {
 }
 
 /**
- * 9-step Connect off-ramp orchestration. Individual steps are exposed
+ * 8-step Connect off-ramp orchestration. Individual steps are exposed
  * on the class so callers can interleave their own UX (e.g. show a
  * confirmation after `getConnectQuote`).
  */
@@ -66,7 +64,6 @@ export class ConnectPayment {
   connectors?: Connector[];
   selected?: Connector;
   connectQuote?: QuoteResponse;
-  stellarQuote?: StellarQuote;
   walletTxHash?: string;
   executeResult?: ExecuteResponse;
 
@@ -88,7 +85,6 @@ export class ConnectPayment {
     await this.discoverConnectors();
     this.selectConnector();
     await this.getConnectQuote();
-    if (this.requiresStellarQuote()) await this.getStellarQuote();
     await this.executeStellarTransaction();
     await this.executeConnectPayment();
 
@@ -96,10 +92,10 @@ export class ConnectPayment {
       throw new Error("recipes: ConnectPayment completed without populating all step outputs");
     }
     return {
-      connectTransactionId: this.executeResult.transactionId,
-      connectStatus: this.executeResult.status,
+      connectTransactionId: this.executeResult.transactionId ?? "",
+      connectStatus: this.executeResult.status ?? "",
       stellarTxHash: this.walletTxHash ?? "",
-      quoteId: this.connectQuote.quoteId,
+      quoteId: this.connectQuote.quoteId ?? "",
       connector: this.selected,
       connectSession: this.connectSession,
     };
@@ -110,8 +106,8 @@ export class ConnectPayment {
     if (i.businessSession.track !== Track.Business) {
       throw new Error("recipes: businessSession must be on TrackBusiness");
     }
-    if (!i.applicationSeed || !i.applicationPublicKey) {
-      throw new Error("recipes: applicationSeed and applicationPublicKey are required");
+    if (!i.applicationSecret || !i.applicationPublicKey) {
+      throw new Error("recipes: applicationSecret and applicationPublicKey are required");
     }
     if (!i.associationId || !i.walletId || !i.beneficiaryId) {
       throw new Error("recipes: association, wallet, and beneficiary IDs are required");
@@ -139,25 +135,24 @@ export class ConnectPayment {
   }
 
   async getBeneficiary(): Promise<Beneficiary> {
-    this.beneficiary = await this.business.getBeneficiary(
+    const { beneficiary } = await this.business.getBeneficiary(
       this.input.businessSession,
       this.input.associationId,
       this.input.beneficiaryId,
       this.input.signal,
     );
+    this.beneficiary = beneficiary;
     return this.beneficiary;
   }
 
   async signInConnect(): Promise<Session> {
-    const kp = Keypair.new(this.input.applicationSeed, this.input.applicationPublicKey);
-    try {
-      const sess = await this.client.sep10.login(kp);
-      await this.client.tokenStore.put(sess);
-      this.connectSession = sess;
-      return sess;
-    } finally {
-      kp.erase();
-    }
+    const sess = await this.client.sep10.signIn(
+      this.input.applicationPublicKey,
+      this.input.applicationSecret,
+    );
+    await this.client.tokenStore.put(sess);
+    this.connectSession = sess;
+    return sess;
   }
 
   async discoverConnectors(): Promise<Connector[]> {
@@ -186,72 +181,39 @@ export class ConnectPayment {
     if (!this.connectSession || !this.selected) {
       throw new Error("recipes: selectConnector and signInConnect must run first");
     }
-    const destination = this.destinationPayload();
     this.connectQuote = await this.connect.getQuote(
       this.connectSession,
       {
-        connector_id: this.selected.id,
+        connectorId: this.selected.id ?? "",
         amount: this.input.sendAmount,
-        currency: this.selected.acceptedAsset,
-        destination,
       },
       this.input.signal,
     );
     return this.connectQuote;
   }
 
-  /** Decision rule from docs/CONNECT_PAYMENT_FLOW.md §3. */
-  requiresStellarQuote(): boolean {
-    if (!this.connectQuote) return false;
-    try {
-      const accepted = parseAsset(this.connectQuote.acceptedAsset);
-      return !assetsEqual(this.input.fundingAsset, accepted);
-    } catch {
-      return false;
-    }
-  }
-
-  async getStellarQuote(): Promise<StellarQuote> {
-    if (!this.connectQuote) throw new Error("recipes: connect quote missing");
-    this.stellarQuote = await this.business.stellarQuote(
-      this.input.businessSession,
-      {
-        fromAsset: assetString(this.input.fundingAsset),
-        toAsset: this.connectQuote.acceptedAsset,
-        amount: this.connectQuote.sendAmount,
-      },
-      this.input.signal,
-    );
-    return this.stellarQuote;
-  }
-
   async executeStellarTransaction(): Promise<string> {
     if (!this.connectQuote) throw new Error("recipes: connect quote missing");
-    const toPublicKey = this.connectQuote.clearingAccount ?? "";
+    const toPublicKey = this.connectQuote.fundingInstructions?.destinationAccount ?? "";
     if (!toPublicKey) {
       throw new Error(
-        "recipes: connect quote did not return a clearingAccount; cannot build Stellar transaction",
+        "recipes: connect quote did not return fundingInstructions.destinationAccount; cannot build Stellar transaction",
       );
-    }
-    const body: Record<string, unknown> = {
-      toPublicKey,
-      fromAsset: assetString(this.input.fundingAsset),
-      amount: this.connectQuote.sendAmount,
-      memo: this.input.memo,
-      memoType: this.input.memoType,
-    };
-    if (this.requiresStellarQuote()) {
-      body.toAsset = this.connectQuote.acceptedAsset;
-      body.sendMax = this.stellarQuote?.sendMax;
     }
     const result = await this.business.executeWalletTransaction(
       this.input.businessSession,
       this.input.walletId,
-      body as unknown as Parameters<BusinessClient["executeWalletTransaction"]>[2],
+      {
+        toPublicKey,
+        fromAsset: this.input.fundingAsset,
+        amount: String(this.connectQuote.sendAmount),
+        memo: this.input.memo,
+        memoType: this.input.memoType,
+      } as unknown as Parameters<BusinessClient["executeWalletTransaction"]>[2],
       this.input.signal,
     );
-    this.walletTxHash = result.txHash;
-    return result.txHash;
+    this.walletTxHash = result.transactionHash ?? "";
+    return result.transactionHash ?? "";
   }
 
   async executeConnectPayment(): Promise<ExecuteResponse> {
@@ -262,7 +224,7 @@ export class ConnectPayment {
     this.executeResult = await this.connect.execute(
       this.connectSession,
       {
-        quoteId: this.connectQuote.quoteId,
+        quoteId: this.connectQuote.quoteId ?? "",
         txHash: this.walletTxHash,
         destination,
         memo: this.input.memo,
@@ -274,7 +236,7 @@ export class ConnectPayment {
 
   private destinationPayload(): unknown {
     if (!this.beneficiary) throw new Error("recipes: beneficiary not loaded");
-    const match = this.beneficiary.payment_destinations.find(
+    const match = (this.beneficiary.payment_destinations ?? []).find(
       (d) => d.method === this.input.method && d.country_iso === this.input.countryISO,
     );
     if (!match) {
