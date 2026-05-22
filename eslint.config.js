@@ -52,6 +52,12 @@ export default [
     },
   },
   {
+    files: ["test/**/*.ts", "examples/**/*.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
     files: ["scripts/**/*.mjs", "scripts/**/*.cjs", "scripts/**/*.js"],
     languageOptions: {
       ecmaVersion: 2023,
