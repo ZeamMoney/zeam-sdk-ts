@@ -74,7 +74,8 @@ export type {
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface ConnectClient
-  extends ReturnType<typeof routeMethods>,
+  extends
+    ReturnType<typeof routeMethods>,
     ReturnType<typeof providerMethods>,
     ReturnType<typeof countryMethods>,
     ReturnType<typeof assetMethods>,

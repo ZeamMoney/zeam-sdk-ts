@@ -9,11 +9,13 @@
 
 import { Keypair as StellarKeypair, Transaction } from "@stellar/stellar-sdk";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const BASE = "https://api-gateway.zeam.app";
 
-const seed   = process.env.ZEAM_STELLAR_SEED!;
+const seed = process.env.ZEAM_STELLAR_SEED!;
 const pubkey = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
 
 if (!seed || !pubkey) {
@@ -24,15 +26,15 @@ if (!seed || !pubkey) {
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 let passed = 0;
@@ -68,13 +70,19 @@ async function call(
 
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
 
   const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
   console.log(`\n${statusColor}RESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
   console.log(HR2);
   const keepHeaders = ["content-type", "x-request-id", "x-envoy-upstream-service-time", "cf-ray"];
-  resp.headers.forEach((v, k) => { if (keepHeaders.includes(k)) console.log(`${k}: ${v}`); });
+  resp.headers.forEach((v, k) => {
+    if (keepHeaders.includes(k)) console.log(`${k}: ${v}`);
+  });
   console.log("");
   console.log(JSON.stringify(parsed, null, 2));
 
@@ -104,14 +112,20 @@ async function main(): Promise<void> {
   // ── 1. getChallenge ────────────────────────────────────────────────────────
   section("getChallenge");
 
-  const challengeResp = await call("GET", `/v1/public/auth-connect?account=${encodeURIComponent(pubkey)}`);
+  const challengeResp = await call(
+    "GET",
+    `/v1/public/auth-connect?account=${encodeURIComponent(pubkey)}`,
+  );
   const challenge = challengeResp.data as { transaction?: string; network_passphrase?: string };
 
   if (challengeResp.status >= 300 || !challenge.transaction) {
     fail("GET /v1/public/auth-connect", `status=${challengeResp.status}`);
     process.exit(1);
   }
-  pass("GET /v1/public/auth-connect", `xdr_len=${challenge.transaction.length}  network=${challenge.network_passphrase}`);
+  pass(
+    "GET /v1/public/auth-connect",
+    `xdr_len=${challenge.transaction.length}  network=${challenge.network_passphrase}`,
+  );
 
   // ── 2. sign ────────────────────────────────────────────────────────────────
   section("sign (local)");
@@ -138,8 +152,11 @@ async function main(): Promise<void> {
   // ── 4. refresh ─────────────────────────────────────────────────────────────
   section("refresh");
 
-  const refreshResp = await call("POST", "/v1/public/auth/refresh", { refreshToken: tokens.refreshToken });
-  const refreshed = (refreshResp.data as { data?: { accessToken?: string; refreshToken?: string } })?.data;
+  const refreshResp = await call("POST", "/v1/public/auth/refresh", {
+    refreshToken: tokens.refreshToken,
+  });
+  const refreshed = (refreshResp.data as { data?: { accessToken?: string; refreshToken?: string } })
+    ?.data;
 
   if (refreshResp.status >= 300 || !refreshed?.accessToken) {
     fail("POST /v1/public/auth/refresh", `status=${refreshResp.status}`);

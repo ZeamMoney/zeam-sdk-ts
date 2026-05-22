@@ -7,15 +7,15 @@ import { Client, Environment } from "@zeammoney/sdk";
 import { ApplicationClient } from "@zeammoney/sdk/client/application";
 
 const client = new Client({ environment: Environment.Production });
-const app    = new ApplicationClient(client);
+const app = new ApplicationClient(client);
 
 const challenge = await client.otp.requestOTP({ mobileNumber: "+27821234567" });
-const session   = await client.otp.verifyOTP({ requestId: challenge.requestId, code });
+const session = await client.otp.verifyOTP({ requestId: challenge.requestId, code });
 
 const rec = await app.register(session, {
-  associationId:   "9e5064ac-e5a4-4f0b-be03-7819e2dfe9b3",
+  associationId: "9e5064ac-e5a4-4f0b-be03-7819e2dfe9b3",
   applicationName: "my-app",
-  webhookUrl:      "https://example.com/webhook",
+  webhookUrl: "https://example.com/webhook",
 });
 ```
 
@@ -39,43 +39,43 @@ The `associationId` must appear in the request body (for `register`, `provision`
 
 ### Core
 
-| Method | Endpoint | HTTP | Returns |
-|---|---|---|---|
-| `listApplications(session, associationId)` | `/v1/applications/:associationId` | GET | `ApplicationRecord[]` |
-| `lookup(session, publicKey)` | `/v1/application/lookup` | GET | `ApplicationRecord` |
-| `getApplication(session, id)` | `/v1/application/:id` | GET | `ApplicationRecord` |
-| `getApplicationEvents(session, id)` | `/v1/application/:id/event` | GET | `ApplicationEvent[]` |
-| `provision(session, input)` | `/v1/application/provision` | POST | `ApplicationRecord` |
-| `register(session, input)` | `/v1/application` | POST | `RegistrationResponse` |
-| `activate(session, id, input)` | `/v1/application/:id/activate` | POST | `RegistrationResponse` |
+| Method                                     | Endpoint                          | HTTP | Returns                |
+| ------------------------------------------ | --------------------------------- | ---- | ---------------------- |
+| `listApplications(session, associationId)` | `/v1/applications/:associationId` | GET  | `ApplicationRecord[]`  |
+| `lookup(session, publicKey)`               | `/v1/application/lookup`          | GET  | `ApplicationRecord`    |
+| `getApplication(session, id)`              | `/v1/application/:id`             | GET  | `ApplicationRecord`    |
+| `getApplicationEvents(session, id)`        | `/v1/application/:id/event`       | GET  | `ApplicationEvent[]`   |
+| `provision(session, input)`                | `/v1/application/provision`       | POST | `ApplicationRecord`    |
+| `register(session, input)`                 | `/v1/application`                 | POST | `RegistrationResponse` |
+| `activate(session, id, input)`             | `/v1/application/:id/activate`    | POST | `RegistrationResponse` |
 
 ### Lifecycle
 
-| Method | Endpoint | HTTP | Returns |
-|---|---|---|---|
-| `submit(session, id, input?)` | `/v1/application/:id/submit` | POST | `ApplicationRecord` |
+| Method                         | Endpoint                      | HTTP | Returns             |
+| ------------------------------ | ----------------------------- | ---- | ------------------- |
+| `submit(session, id, input?)`  | `/v1/application/:id/submit`  | POST | `ApplicationRecord` |
 | `approve(session, id, input?)` | `/v1/application/:id/approve` | POST | `ApplicationRecord` |
-| `reject(session, id, input?)` | `/v1/application/:id/reject` | POST | `ApplicationRecord` |
+| `reject(session, id, input?)`  | `/v1/application/:id/reject`  | POST | `ApplicationRecord` |
 | `suspend(session, id, input?)` | `/v1/application/:id/suspend` | POST | `ApplicationRecord` |
-| `resume(session, id, input?)` | `/v1/application/:id/resume` | POST | `ApplicationRecord` |
-| `revoke(session, id, input?)` | `/v1/application/:id/revoke` | POST | `ApplicationRecord` |
+| `resume(session, id, input?)`  | `/v1/application/:id/resume`  | POST | `ApplicationRecord` |
+| `revoke(session, id, input?)`  | `/v1/application/:id/revoke`  | POST | `ApplicationRecord` |
 
 ### Credentials
 
-| Method | Endpoint | HTTP | Returns |
-|---|---|---|---|
+| Method                          | Endpoint                                | HTTP | Returns                    |
+| ------------------------------- | --------------------------------------- | ---- | -------------------------- |
 | `rotateCredential(session, id)` | `/v1/application/:id/rotate-credential` | POST | `RotateCredentialResponse` |
-| `tokenSmokeTest(session, id)` | `/v1/application/:id/token` | POST | `TokenSmokeTestResponse` |
+| `tokenSmokeTest(session, id)`   | `/v1/application/:id/token`             | POST | `TokenSmokeTestResponse`   |
 
 ### Webhooks
 
-| Method | Endpoint | HTTP | Returns |
-|---|---|---|---|
-| `listWebhooks(session, id)` | `/v1/application/:id/webhook` | GET | `Webhook[]` |
-| `addWebhook(session, id, input)` | `/v1/application/:id/webhook` | POST | `AddWebhookResponse` |
-| `updateWebhook(session, id, webhookId, input)` | `/v1/application/:id/webhook/:webhookId` | PATCH | `Webhook` |
-| `deleteWebhook(session, id, webhookId)` | `/v1/application/:id/webhook/:webhookId` | DELETE | `void` |
-| `rotateWebhookSecret(session, id, webhookId)` | `/v1/application/:id/webhook/:webhookId/rotate-secret` | POST | `RotateWebhookSecretResponse` |
+| Method                                         | Endpoint                                               | HTTP   | Returns                       |
+| ---------------------------------------------- | ------------------------------------------------------ | ------ | ----------------------------- |
+| `listWebhooks(session, id)`                    | `/v1/application/:id/webhook`                          | GET    | `Webhook[]`                   |
+| `addWebhook(session, id, input)`               | `/v1/application/:id/webhook`                          | POST   | `AddWebhookResponse`          |
+| `updateWebhook(session, id, webhookId, input)` | `/v1/application/:id/webhook/:webhookId`               | PATCH  | `Webhook`                     |
+| `deleteWebhook(session, id, webhookId)`        | `/v1/application/:id/webhook/:webhookId`               | DELETE | `void`                        |
+| `rotateWebhookSecret(session, id, webhookId)`  | `/v1/application/:id/webhook/:webhookId/rotate-secret` | POST   | `RotateWebhookSecretResponse` |
 
 ---
 
@@ -129,14 +129,14 @@ draft → pending_approval → approved → suspended ⇄ active
                         ↘ revoked  (terminal)
 ```
 
-| Status | How to reach |
-|---|---|
-| `draft` | `provision()` |
+| Status             | How to reach                           |
+| ------------------ | -------------------------------------- |
+| `draft`            | `provision()`                          |
 | `pending_approval` | `register()`, `activate()`, `submit()` |
-| `approved` | `approve()` — two-person rule applies |
-| `rejected` | `reject()` |
-| `suspended` | `suspend()` — only from `approved` |
-| `revoked` | `revoke()` — terminal |
+| `approved`         | `approve()` — two-person rule applies  |
+| `rejected`         | `reject()`                             |
+| `suspended`        | `suspend()` — only from `approved`     |
+| `revoked`          | `revoke()` — terminal                  |
 
 `"submitted"` is an **event type** in `ApplicationEvent.eventType`, not a status value. After `submit()` the status becomes `"pending_approval"`.
 
@@ -185,123 +185,152 @@ const result = await registerApplication(client, {
 
 ```ts
 type ApplicationStatus =
-  | "draft" | "pending_approval" | "approved"
-  | "rejected" | "suspended" | "revoked";
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "rejected"
+  | "suspended"
+  | "revoked";
 
 interface ApplicationRecord {
-  id:                        string;   // UUID — use for all subsequent calls
-  associationId:             string;
-  applicationName:           string;
-  classificationCode:        string;
-  publicKey?:                string | null;
-  connectIntegratorId?:      string | null;
-  idpAuthId?:                string | null;
+  id: string; // UUID — use for all subsequent calls
+  associationId: string;
+  applicationName: string;
+  classificationCode: string;
+  publicKey?: string | null;
+  connectIntegratorId?: string | null;
+  idpAuthId?: string | null;
   settlementAccountPublicKey?: string | null;
-  environment:               string;
-  status:                    ApplicationStatus;
-  activated:                 boolean;
-  expiresAt?:                string | null;
-  createdAt:                 string;
-  updatedAt:                 string;
+  environment: string;
+  status: ApplicationStatus;
+  activated: boolean;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ApplicationEvent {
-  id:            string;
+  id: string;
   applicationId?: string;
-  actorUserId?:  string;
-  actorIp?:      string;
-  userAgent?:    string;
-  eventType:     string;
-  outcome:       string;
-  metadata:      Record<string, unknown>;
-  reason?:       string;
-  createdAt:     string;
+  actorUserId?: string;
+  actorIp?: string;
+  userAgent?: string;
+  eventType: string;
+  outcome: string;
+  metadata: Record<string, unknown>;
+  reason?: string;
+  createdAt: string;
 }
 
 interface RegisterApplicationInput {
-  associationId:      string;
-  applicationName:    string;
-  webhookUrl:         string;
-  webhookMethod?:     "POST" | "PUT";
+  associationId: string;
+  applicationName: string;
+  webhookUrl: string;
+  webhookMethod?: "POST" | "PUT";
   settlementAccount?: { publicKey: string; vaultId: string };
-  expiresAt?:         string;
+  expiresAt?: string;
   classificationCode?: string;
-  publicKey?:         string;
+  publicKey?: string;
   stellarSeedVaultId?: string;
-  environment?:       "sandbox" | "production";
+  environment?: "sandbox" | "production";
 }
 
 interface ProvisionApplicationInput {
-  associationId:   string;
+  associationId: string;
   applicationName: string;
-  expiresAt?:      string;
+  expiresAt?: string;
 }
 
 interface ActivateApplicationInput {
-  webhookUrl:      string;
-  webhookMethod?:  "POST" | "PUT";
+  webhookUrl: string;
+  webhookMethod?: "POST" | "PUT";
   settlementAccount?: { publicKey: string; vaultId: string };
 }
 
-interface TransitionInput { reason?: string }
-
-interface StellarMaterial       { publicKey: string; secret: string; vaultId: string }
-interface APIKeyMaterial        { keyId: string; secret: string; last4: string }
-interface WebhookSecretMaterial { webhookId: string; secret: string; last4: string }
-
-interface RegistrationResponse {
-  application:    ApplicationRecord;
-  integratorId:   string;
-  stellar:        StellarMaterial;
-  apiKey:         APIKeyMaterial;
-  webhookSecret?: WebhookSecretMaterial;
-  connectSecret:  string;
-  idpAuthId:      string;
-  warnings?:      string[];
+interface TransitionInput {
+  reason?: string;
 }
 
-interface RotateCredentialResponse    { keyId: string; secret: string; last4: string }
-interface TokenSmokeTestResponse      { success?: boolean; token?: string }
+interface StellarMaterial {
+  publicKey: string;
+  secret: string;
+  vaultId: string;
+}
+interface APIKeyMaterial {
+  keyId: string;
+  secret: string;
+  last4: string;
+}
+interface WebhookSecretMaterial {
+  webhookId: string;
+  secret: string;
+  last4: string;
+}
+
+interface RegistrationResponse {
+  application: ApplicationRecord;
+  integratorId: string;
+  stellar: StellarMaterial;
+  apiKey: APIKeyMaterial;
+  webhookSecret?: WebhookSecretMaterial;
+  connectSecret: string;
+  idpAuthId: string;
+  warnings?: string[];
+}
+
+interface RotateCredentialResponse {
+  keyId: string;
+  secret: string;
+  last4: string;
+}
+interface TokenSmokeTestResponse {
+  success?: boolean;
+  token?: string;
+}
 
 type WebhookStatus = "pending_verification" | "active" | "paused" | "disabled" | "revoked";
 
 interface Webhook {
-  id:              string;
-  applicationId:   string;
-  url:             string;
-  webhookMethod:   "POST" | "PUT";
-  description?:    string | null;
-  authScheme:      "none" | "bearer" | "hmac";
-  status:          WebhookStatus;
-  failureCount:    number;
-  lastSuccessAt?:  string | null;
-  lastFailureAt?:  string | null;
-  createdBy:       string;   // always present — non-pointer UUID in Go
-  deletedAt?:      string | null;
-  createdAt:       string;
-  updatedAt:       string;
+  id: string;
+  applicationId: string;
+  url: string;
+  webhookMethod: "POST" | "PUT";
+  description?: string | null;
+  authScheme: "none" | "bearer" | "hmac";
+  status: WebhookStatus;
+  failureCount: number;
+  lastSuccessAt?: string | null;
+  lastFailureAt?: string | null;
+  createdBy: string; // always present — non-pointer UUID in Go
+  deletedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface AddWebhookInput {
-  url:          string;
+  url: string;
   webhookMethod: "POST" | "PUT";
-  authScheme:   "none" | "bearer" | "hmac";
+  authScheme: "none" | "bearer" | "hmac";
   description?: string;
 }
 
 interface AddWebhookResponse {
   webhook: Webhook;
-  secret:  RotateWebhookSecretResponse;
+  secret: RotateWebhookSecretResponse;
 }
 
 interface UpdateWebhookInput {
-  url?:          string;
+  url?: string;
   webhookMethod?: "POST" | "PUT";
-  description?:  string | null;
-  status?:       WebhookStatus;
+  description?: string | null;
+  status?: WebhookStatus;
 }
 
-interface RotateWebhookSecretResponse { webhookId: string; secret: string; last4: string }
+interface RotateWebhookSecretResponse {
+  webhookId: string;
+  secret: string;
+  last4: string;
+}
 ```
 
 ---
@@ -324,7 +353,7 @@ ZEAM_TEST_APPROVED_APP_ID=<uuid> \
 npx tsx test/application-smoke.ts
 ```
 
-| File | Purpose |
-|---|---|
-| `test/application-smoke.ts` | SDK smoke — all 20 `ApplicationClient` methods |
-| `test/api-application-smoke.ts` | Raw gateway — full request/response logging |
+| File                            | Purpose                                        |
+| ------------------------------- | ---------------------------------------------- |
+| `test/application-smoke.ts`     | SDK smoke — all 20 `ApplicationClient` methods |
+| `test/api-application-smoke.ts` | Raw gateway — full request/response logging    |

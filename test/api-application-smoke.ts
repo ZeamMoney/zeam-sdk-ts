@@ -20,22 +20,24 @@
 import * as readline from "node:readline/promises";
 import { getRawToken } from "./session-helper.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const BASE = process.env.ZEAM_API_URL ?? "https://api-gateway.zeam.app";
 
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 let passed = 0;
@@ -60,8 +62,11 @@ async function call(
   console.log(HR2);
   for (const [k, v] of Object.entries(headers)) {
     const display =
-      k === "Authorization" ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…` :
-      k === "magic-header"  ? `${v.slice(0, 16)}…` : v;
+      k === "Authorization"
+        ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…`
+        : k === "magic-header"
+          ? `${v.slice(0, 16)}…`
+          : v;
     console.log(`${k}: ${display}`);
   }
   if (body !== undefined) {
@@ -79,7 +84,11 @@ async function call(
 
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
 
   const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
   console.log(`\n${statusColor}RESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
@@ -141,20 +150,20 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const associationId  = process.env.ZEAM_TEST_ASSOCIATION_ID ?? "";
-  const webhookUrl     = process.env.ZEAM_TEST_WEBHOOK_URL ?? "https://webhook.site/test";
-  const envAppId      = process.env.ZEAM_TEST_APP_ID ?? "";
-  const envWebhookId  = process.env.ZEAM_TEST_WEBHOOK_ID ?? "";
-  const envPublicKey  = process.env.ZEAM_TEST_PUBLIC_KEY ?? "";
+  const associationId = process.env.ZEAM_TEST_ASSOCIATION_ID ?? "";
+  const webhookUrl = process.env.ZEAM_TEST_WEBHOOK_URL ?? "https://webhook.site/test";
+  const envAppId = process.env.ZEAM_TEST_APP_ID ?? "";
+  const envWebhookId = process.env.ZEAM_TEST_WEBHOOK_ID ?? "";
+  const envPublicKey = process.env.ZEAM_TEST_PUBLIC_KEY ?? "";
   const approvedAppId = process.env.ZEAM_TEST_APPROVED_APP_ID ?? "";
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   console.log(`\n${BOLD}ApplicationClient API gateway smoke test${RESET}  ${DIM}${BASE}${RESET}`);
-  if (associationId)  console.log(`  ${DIM}ZEAM_TEST_ASSOCIATION_ID   = ${associationId}${RESET}`);
-  if (envAppId)       console.log(`  ${DIM}ZEAM_TEST_APP_ID           = ${envAppId}${RESET}`);
-  if (envWebhookId)   console.log(`  ${DIM}ZEAM_TEST_WEBHOOK_ID       = ${envWebhookId}${RESET}`);
-  if (envPublicKey)   console.log(`  ${DIM}ZEAM_TEST_PUBLIC_KEY       = ${envPublicKey}${RESET}`);
-  if (approvedAppId)  console.log(`  ${DIM}ZEAM_TEST_APPROVED_APP_ID = ${approvedAppId}${RESET}`);
+  if (associationId) console.log(`  ${DIM}ZEAM_TEST_ASSOCIATION_ID   = ${associationId}${RESET}`);
+  if (envAppId) console.log(`  ${DIM}ZEAM_TEST_APP_ID           = ${envAppId}${RESET}`);
+  if (envWebhookId) console.log(`  ${DIM}ZEAM_TEST_WEBHOOK_ID       = ${envWebhookId}${RESET}`);
+  if (envPublicKey) console.log(`  ${DIM}ZEAM_TEST_PUBLIC_KEY       = ${envPublicKey}${RESET}`);
+  if (approvedAppId) console.log(`  ${DIM}ZEAM_TEST_APPROVED_APP_ID = ${approvedAppId}${RESET}`);
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   section("Auth — OTP");
@@ -163,7 +172,7 @@ async function main(): Promise<void> {
   rl.close();
   pass("session", `token=…${token.slice(-8)}`);
 
-  let probeAppId     = envAppId;
+  let probeAppId = envAppId;
   let probeWebhookId = envWebhookId;
 
   // ── List applications ──────────────────────────────────────────────────────
@@ -175,7 +184,9 @@ async function main(): Promise<void> {
     const r = await call("GET", `/v1/applications/${encodeURIComponent(associationId)}`, token);
     check("GET /v1/applications/:association_id", r.status, r.data);
     if (r.status === 200) {
-      const list = (Array.isArray(r.data) ? r.data : (extractData(r.data) as unknown[])) as Array<{ id?: string }>;
+      const list = (Array.isArray(r.data) ? r.data : (extractData(r.data) as unknown[])) as Array<{
+        id?: string;
+      }>;
       if (!probeAppId && list.length > 0) {
         probeAppId = list[0].id ?? "";
         if (probeAppId) console.log(`  ${DIM}probeAppId = ${probeAppId}${RESET}`);
@@ -189,7 +200,11 @@ async function main(): Promise<void> {
   if (!envPublicKey) {
     skip("GET /v1/application/lookup", "set ZEAM_TEST_PUBLIC_KEY");
   } else {
-    const r = await call("GET", `/v1/application/lookup?publicKey=${encodeURIComponent(envPublicKey)}`, token);
+    const r = await call(
+      "GET",
+      `/v1/application/lookup?publicKey=${encodeURIComponent(envPublicKey)}`,
+      token,
+    );
     check("GET /v1/application/lookup", r.status, r.data);
   }
 
@@ -229,7 +244,8 @@ async function main(): Promise<void> {
     if (r.status === 200 || r.status === 201) {
       const d = extractData(r.data);
       provisionedDraftId = (d as { id?: string }).id ?? "";
-      if (provisionedDraftId) console.log(`  ${DIM}provisionedDraftId = ${provisionedDraftId}${RESET}`);
+      if (provisionedDraftId)
+        console.log(`  ${DIM}provisionedDraftId = ${provisionedDraftId}${RESET}`);
     }
   }
 
@@ -237,23 +253,32 @@ async function main(): Promise<void> {
   section("POST /v1/application  (register)");
 
   if (!associationId) {
-    console.log(`  ${YELLOW}⚠  ZEAM_TEST_ASSOCIATION_ID not set — register will likely 403${RESET}`);
+    console.log(
+      `  ${YELLOW}⚠  ZEAM_TEST_ASSOCIATION_ID not set — register will likely 403${RESET}`,
+    );
   }
 
   const r = await call("POST", "/v1/application", token, {
-    associationId:   associationId || undefined,
+    associationId: associationId || undefined,
     applicationName: `sdk-smoke-test-app-${Date.now()}`,
     webhookUrl,
-    webhookMethod:   "POST",
+    webhookMethod: "POST",
   });
   check("POST /v1/application", r.status, r.data);
 
   if (r.status === 200 || r.status === 201) {
     const d = extractData(r.data);
-    const appId     = (d as { application?: { id?: string } }).application?.id ?? "";
-    const webhookId = (d as { webhookSecret?: { webhookId?: string } }).webhookSecret?.webhookId ?? "";
-    if (appId)     { probeAppId     = appId;     console.log(`  ${DIM}probeAppId     = ${appId}${RESET}`); }
-    if (webhookId) { probeWebhookId = webhookId; console.log(`  ${DIM}probeWebhookId = ${webhookId}${RESET}`); }
+    const appId = (d as { application?: { id?: string } }).application?.id ?? "";
+    const webhookId =
+      (d as { webhookSecret?: { webhookId?: string } }).webhookSecret?.webhookId ?? "";
+    if (appId) {
+      probeAppId = appId;
+      console.log(`  ${DIM}probeAppId     = ${appId}${RESET}`);
+    }
+    if (webhookId) {
+      probeWebhookId = webhookId;
+      console.log(`  ${DIM}probeWebhookId = ${webhookId}${RESET}`);
+    }
   }
 
   // ── Activate draft application ─────────────────────────────────────────────
@@ -298,7 +323,11 @@ async function main(): Promise<void> {
   if (!provisionedDraftId) {
     skip("POST /v1/application/:id/submit", "no draft app — provision() must succeed");
   } else {
-    const rs = await call("POST", `/v1/application/${encodeURIComponent(provisionedDraftId)}/submit`, token);
+    const rs = await call(
+      "POST",
+      `/v1/application/${encodeURIComponent(provisionedDraftId)}/submit`,
+      token,
+    );
     check("POST /v1/application/:id/submit", rs.status, rs.data);
   }
 
@@ -308,7 +337,11 @@ async function main(): Promise<void> {
   if (!probeAppId) {
     skip("POST /v1/application/:id/approve", "no app ID");
   } else {
-    const ra = await call("POST", `/v1/application/${encodeURIComponent(probeAppId)}/approve`, token);
+    const ra = await call(
+      "POST",
+      `/v1/application/${encodeURIComponent(probeAppId)}/approve`,
+      token,
+    );
     check("POST /v1/application/:id/approve", ra.status, ra.data);
   }
 
@@ -335,9 +368,16 @@ async function main(): Promise<void> {
   let suspendSucceeded = false;
 
   if (!approvedAppId) {
-    skip("POST /v1/application/:id/suspend", "set ZEAM_TEST_APPROVED_APP_ID (app approved by a different user)");
+    skip(
+      "POST /v1/application/:id/suspend",
+      "set ZEAM_TEST_APPROVED_APP_ID (app approved by a different user)",
+    );
   } else {
-    const rsu = await call("POST", `/v1/application/${encodeURIComponent(approvedAppId)}/suspend`, token);
+    const rsu = await call(
+      "POST",
+      `/v1/application/${encodeURIComponent(approvedAppId)}/suspend`,
+      token,
+    );
     check("POST /v1/application/:id/suspend", rsu.status, rsu.data);
     if (rsu.status === 200 || rsu.status === 201) suspendSucceeded = true;
   }
@@ -346,9 +386,16 @@ async function main(): Promise<void> {
   section("POST /v1/application/:id/resume");
 
   if (!approvedAppId || !suspendSucceeded) {
-    skip("POST /v1/application/:id/resume", approvedAppId ? "suspend did not succeed" : "set ZEAM_TEST_APPROVED_APP_ID");
+    skip(
+      "POST /v1/application/:id/resume",
+      approvedAppId ? "suspend did not succeed" : "set ZEAM_TEST_APPROVED_APP_ID",
+    );
   } else {
-    const rre = await call("POST", `/v1/application/${encodeURIComponent(approvedAppId)}/resume`, token);
+    const rre = await call(
+      "POST",
+      `/v1/application/${encodeURIComponent(approvedAppId)}/resume`,
+      token,
+    );
     check("POST /v1/application/:id/resume", rre.status, rre.data);
   }
 
@@ -372,7 +419,10 @@ async function main(): Promise<void> {
   section("POST /v1/application/:id/rotate-credential");
 
   if (!probeAppId) {
-    skip("POST /v1/application/:id/rotate-credential", "no app ID — set ZEAM_TEST_APP_ID or ensure register() succeeds");
+    skip(
+      "POST /v1/application/:id/rotate-credential",
+      "no app ID — set ZEAM_TEST_APP_ID or ensure register() succeeds",
+    );
   } else {
     const rc = await call(
       "POST",
@@ -390,7 +440,10 @@ async function main(): Promise<void> {
   } else {
     const rt = await call("POST", `/v1/application/${encodeURIComponent(probeAppId)}/token`, token);
     if (rt.status === 501) {
-      skip("POST /v1/application/:id/token", "501 — signer resolver not configured in this environment");
+      skip(
+        "POST /v1/application/:id/token",
+        "501 — signer resolver not configured in this environment",
+      );
     } else {
       check("POST /v1/application/:id/token", rt.status, rt.data);
     }
@@ -404,10 +457,16 @@ async function main(): Promise<void> {
   if (!probeAppId) {
     skip("GET /v1/application/:id/webhook", "no app ID");
   } else {
-    const rlw = await call("GET", `/v1/application/${encodeURIComponent(probeAppId)}/webhook`, token);
+    const rlw = await call(
+      "GET",
+      `/v1/application/${encodeURIComponent(probeAppId)}/webhook`,
+      token,
+    );
     check("GET /v1/application/:id/webhook", rlw.status, rlw.data);
     if (rlw.status === 200 && !probeWebhookId) {
-      const hooks = (Array.isArray(rlw.data) ? rlw.data : (extractData(rlw.data) as unknown[])) as Array<{ id?: string }>;
+      const hooks = (
+        Array.isArray(rlw.data) ? rlw.data : (extractData(rlw.data) as unknown[])
+      ) as Array<{ id?: string }>;
       if (hooks.length > 0) probeWebhookId = hooks[0].id ?? "";
     }
   }
@@ -419,16 +478,22 @@ async function main(): Promise<void> {
     skip("POST /v1/application/:id/webhook", "no app ID");
   } else {
     const smokeUrl = `${webhookUrl}?smoke=${Date.now()}`;
-    const raw = await call("POST", `/v1/application/${encodeURIComponent(probeAppId)}/webhook`, token, {
-      url:           smokeUrl,
-      webhookMethod: "POST",
-      authScheme:    "none",
-      description:   "sdk-smoke-test",
-    });
+    const raw = await call(
+      "POST",
+      `/v1/application/${encodeURIComponent(probeAppId)}/webhook`,
+      token,
+      {
+        url: smokeUrl,
+        webhookMethod: "POST",
+        authScheme: "none",
+        description: "sdk-smoke-test",
+      },
+    );
     check("POST /v1/application/:id/webhook", raw.status, raw.data);
     if (raw.status === 200 || raw.status === 201) {
       const d = extractData(raw.data);
-      addedWebhookId = (d as { webhook?: { id?: string } }).webhook?.id ?? (d as { id?: string }).id ?? "";
+      addedWebhookId =
+        (d as { webhook?: { id?: string } }).webhook?.id ?? (d as { id?: string }).id ?? "";
       if (addedWebhookId) console.log(`  ${DIM}addedWebhookId = ${addedWebhookId}${RESET}`);
     }
   }

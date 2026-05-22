@@ -10,16 +10,18 @@
 import * as readline from "node:readline/promises";
 import { getRawToken } from "./session-helper.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const BASE = "https://api-gateway.zeam.app";
 const ASSOCIATION_ID = process.env.ZEAM_TEST_ASSOCIATION_ID ?? "";
 
-const BOLD  = "\x1b[1m";
-const DIM   = "\x1b[2m";
+const BOLD = "\x1b[1m";
+const DIM = "\x1b[2m";
 const GREEN = "\x1b[32m";
-const RED   = "\x1b[31m";
-const CYAN  = "\x1b[36m";
+const RED = "\x1b[31m";
+const CYAN = "\x1b[36m";
 const YELLOW = "\x1b[33m";
 const RESET = "\x1b[0m";
 
@@ -33,8 +35,8 @@ async function call(
 ): Promise<{ status: number; data: unknown }> {
   const url = `${BASE}${path}`;
   const headers: Record<string, string> = {
-    "Authorization": `Bearer ${token}`,
-    "Accept": "application/json",
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
   };
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -65,7 +67,11 @@ async function call(
 
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
 
   // ── print response ─────────────────────────────────────────────────────────
   const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
@@ -106,27 +112,22 @@ async function main() {
 
   // ── 4. Create beneficiary ──────────────────────────────────────────────────
   console.log(`\n${BOLD}── 4. Create beneficiary ${"─".repeat(37)}${RESET}`);
-  const createResp = await call(
-    "POST",
-    `/v1/business/beneficiaries/${ASSOCIATION_ID}`,
-    token,
-    {
-      beneficiary_type: "Individual",
-      reference: "sdk-smoke-test",
-      individual: {
-        first_name: "SDK",
-        last_name: "SmokeTest",
-      },
-      payment_destinations: [
-        {
-          method: "MOMO",
-          mobile_number: "+27845551234",
-          country_iso: "ZA",
-          is_primary: true,
-        },
-      ],
+  const createResp = await call("POST", `/v1/business/beneficiaries/${ASSOCIATION_ID}`, token, {
+    beneficiary_type: "Individual",
+    reference: "sdk-smoke-test",
+    individual: {
+      first_name: "SDK",
+      last_name: "SmokeTest",
     },
-  );
+    payment_destinations: [
+      {
+        method: "MOMO",
+        mobile_number: "+27845551234",
+        country_iso: "ZA",
+        is_primary: true,
+      },
+    ],
+  });
 
   const body = createResp.data as Record<string, unknown>;
   const dataField = body?.data as Record<string, unknown> | undefined;
@@ -147,27 +148,22 @@ async function main() {
 
   // ── 6. Update beneficiary ──────────────────────────────────────────────────
   console.log(`\n${BOLD}── 6. Update beneficiary ${"─".repeat(37)}${RESET}`);
-  await call(
-    "PUT",
-    `/v1/business/beneficiaries/${ASSOCIATION_ID}/${beneficiaryId}`,
-    token,
-    {
-      beneficiary_type: "Individual",
-      reference: "sdk-smoke-test-updated",
-      individual: {
-        first_name: "SDK",
-        last_name: "SmokeTest-Updated",
-      },
-      payment_destinations: [
-        {
-          method: "MOMO",
-          mobile_number: "+27845551234",
-          country_iso: "ZA",
-          is_primary: true,
-        },
-      ],
+  await call("PUT", `/v1/business/beneficiaries/${ASSOCIATION_ID}/${beneficiaryId}`, token, {
+    beneficiary_type: "Individual",
+    reference: "sdk-smoke-test-updated",
+    individual: {
+      first_name: "SDK",
+      last_name: "SmokeTest-Updated",
     },
-  );
+    payment_destinations: [
+      {
+        method: "MOMO",
+        mobile_number: "+27845551234",
+        country_iso: "ZA",
+        is_primary: true,
+      },
+    ],
+  });
 
   // ── 7. List payment destinations ───────────────────────────────────────────
   console.log(`\n${BOLD}── 7. List payment destinations ${"─".repeat(30)}${RESET}`);

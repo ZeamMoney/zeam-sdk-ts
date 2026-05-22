@@ -33,6 +33,7 @@ const connectors = await connect.queryConnectors(session, {
 ```
 
 Valid filter values:
+
 - **country**: ISO-2 code (`ZA`, `KE`, `NG`, etc.)
 - **method**: `BANK`, `MOMO`, `CASH`, `CARD`, `WALLET`, `VOUCHER`, `QR`
 - **direction** (via gateway): pinned to `OFF_RAMP` for `connect-query`; use direct GraphQL for `ON_RAMP` or `P_2_P`
@@ -56,6 +57,7 @@ const quote = await connect.getDirectionalQuote(session, "Send", {
 ```
 
 The `fundingInstructions` in the response tell you where to send the Stellar payment:
+
 - `destinationAccount` — the Connect clearing account (G...)
 - `asset` — the token to send (e.g. ZARZ)
 - `memo` + `memoType` — must be included in the Stellar transaction
@@ -129,12 +131,12 @@ const integrator = await connect.getIntegrator(session);
 
 The following methods are commented out due to Connect backend bugs. Types are still exported for forward compatibility:
 
-| Method | Bug | Tracked in |
-|--------|-----|------------|
-| `listRoutes()` | Crashes Connect pod — `Yoyo` not in `InternalProviderName` enum | routes/index.ts |
-| `listProviders()` / `getProvider()` | Same Yoyo enum bug — returns 403 | providers/index.ts |
-| `onRampCashIn()` | MediatR handler not registered (DI bug) — returns 403 | onramp/index.ts |
-| `getPlatformHealth()` | Gateway proxies to wrong path (`/platform/health` vs `/healthz`) | platform/index.ts |
+| Method                              | Bug                                                              | Tracked in         |
+| ----------------------------------- | ---------------------------------------------------------------- | ------------------ |
+| `listRoutes()`                      | Crashes Connect pod — `Yoyo` not in `InternalProviderName` enum  | routes/index.ts    |
+| `listProviders()` / `getProvider()` | Same Yoyo enum bug — returns 403                                 | providers/index.ts |
+| `onRampCashIn()`                    | MediatR handler not registered (DI bug) — returns 403            | onramp/index.ts    |
+| `getPlatformHealth()`               | Gateway proxies to wrong path (`/platform/health` vs `/healthz`) | platform/index.ts  |
 
 ## SDK Implementation Notes
 

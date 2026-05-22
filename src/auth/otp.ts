@@ -83,7 +83,11 @@ export class OTPFlow {
   /**
    * Exchange a sign-up OTP code for a Business session.
    */
-  async verifySignUp(input: { requestId: string; code: string; subject?: string }): Promise<Session> {
+  async verifySignUp(input: {
+    requestId: string;
+    code: string;
+    subject?: string;
+  }): Promise<Session> {
     if (!input.requestId || !input.code) {
       throw new Error("auth: requestId and code are required");
     }
@@ -137,7 +141,13 @@ export class OTPFlow {
     }
     try {
       const parsed = JSON.parse(raw) as { status?: number; data?: unknown };
-if (parsed && "data" in parsed && typeof parsed.status === "number" && parsed.status >= 200 && parsed.status < 300) {
+      if (
+        parsed &&
+        "data" in parsed &&
+        typeof parsed.status === "number" &&
+        parsed.status >= 200 &&
+        parsed.status < 300
+      ) {
         return parsed.data as T;
       }
       return parsed as T;

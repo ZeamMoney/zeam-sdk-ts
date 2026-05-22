@@ -24,7 +24,9 @@ import { HealthClient } from "../src/client/health/index.js";
 // import { ReportsClient } from "../src/client/reports/index.js";   // not yet implemented — see docs/reports.md
 import { Session, Track } from "../src/auth/index.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -78,9 +80,7 @@ async function main(): Promise<void> {
   }
 
   const baseURL = process.env.ZEAM_API_URL;
-  const environment = baseURL
-    ? Environment.custom(baseURL)
-    : Environment.Production;
+  const environment = baseURL ? Environment.custom(baseURL) : Environment.Production;
 
   const isInsecure = baseURL?.startsWith("http://") ?? false;
 
@@ -132,7 +132,10 @@ async function main(): Promise<void> {
 
   try {
     challenge = await client.otp.requestOTP({ mobileNumber: mobile });
-    pass("OTPFlow.requestOTP()", `requestId=${challenge.requestId}${challenge.maskedDestination ? ` masked=${challenge.maskedDestination}` : ""}`);
+    pass(
+      "OTPFlow.requestOTP()",
+      `requestId=${challenge.requestId}${challenge.maskedDestination ? ` masked=${challenge.maskedDestination}` : ""}`,
+    );
   } catch (err) {
     fail("OTPFlow.requestOTP()", err);
   }
@@ -211,7 +214,10 @@ async function main(): Promise<void> {
       if (isZeamError(err, Kind.NotFound)) {
         pass("BusinessClient.getBeneficiary()", "404 NotFound — auth OK, ID not found as expected");
       } else if (isZeamError(err, Kind.Validation)) {
-        pass("BusinessClient.getBeneficiary()", "422 Validation — auth OK, sentinel ID rejected as expected");
+        pass(
+          "BusinessClient.getBeneficiary()",
+          "422 Validation — auth OK, sentinel ID rejected as expected",
+        );
       } else {
         fail("BusinessClient.getBeneficiary()", err);
       }
@@ -231,7 +237,10 @@ async function main(): Promise<void> {
         isZeamError(err, Kind.Validation) ||
         isZeamError(err, Kind.Remote)
       ) {
-        pass("BusinessClient.stellarQuote()", `${(err as ZeamError).kind} — auth OK, sentinel rejected`);
+        pass(
+          "BusinessClient.stellarQuote()",
+          `${(err as ZeamError).kind} — auth OK, sentinel rejected`,
+        );
       } else if (isZeamError(err, Kind.Auth) || isZeamError(err, Kind.Authz)) {
         fail("BusinessClient.stellarQuote()  (auth failure — session may have expired)", err);
       } else {
@@ -308,7 +317,10 @@ async function main(): Promise<void> {
         if (e.is(Kind.Auth)) {
           fail("ApplicationClient.rotateCredential()  (401 — token rejected)", err);
         } else {
-          pass("ApplicationClient.rotateCredential()", `kind=${e.kind} status=${e.status} — ZeamError OK`);
+          pass(
+            "ApplicationClient.rotateCredential()",
+            `kind=${e.kind} status=${e.status} — ZeamError OK`,
+          );
         }
       } else {
         fail("ApplicationClient.rotateCredential()", err);
@@ -324,7 +336,10 @@ async function main(): Promise<void> {
         if (e.is(Kind.Auth)) {
           fail("ApplicationClient.rotateWebhookSecret()  (401 — token rejected)", err);
         } else {
-          pass("ApplicationClient.rotateWebhookSecret()", `kind=${e.kind} status=${e.status} — ZeamError OK`);
+          pass(
+            "ApplicationClient.rotateWebhookSecret()",
+            `kind=${e.kind} status=${e.status} — ZeamError OK`,
+          );
         }
       } else {
         fail("ApplicationClient.rotateWebhookSecret()", err);
@@ -358,7 +373,8 @@ async function main(): Promise<void> {
 
   const appSeed = process.env.ZEAM_TEST_APP_SEED ?? process.env.ZEAM_STELLAR_SEED ?? "";
   const appPubKey = process.env.ZEAM_TEST_APP_PUBKEY ?? process.env.ZEAM_STELLAR_PUBLIC_KEY ?? "";
-  const connectSecret = process.env.ZEAM_TEST_CONNECT_SECRET ?? process.env.ZEAM_CONNECT_SECRET ?? "";
+  const connectSecret =
+    process.env.ZEAM_TEST_CONNECT_SECRET ?? process.env.ZEAM_CONNECT_SECRET ?? "";
 
   // getChallenge doesn't require a signer — just needs a valid Stellar pubkey.
   if (!appPubKey) {
@@ -427,7 +443,10 @@ async function main(): Promise<void> {
       pass("RawClient.get('/v1/business/association/all')  (unexpected 200 — no auth header)");
     } catch (err) {
       if (isZeamError(err, Kind.Auth)) {
-        pass("RawClient.get('/v1/business/association/all')", "401 as expected — raw() sends no auth header");
+        pass(
+          "RawClient.get('/v1/business/association/all')",
+          "401 as expected — raw() sends no auth header",
+        );
       } else if (isZeamError(err, Kind.NotFound) || isZeamError(err, Kind.Validation)) {
         pass("RawClient.get('/v1/business/association/all')", `${(err as ZeamError).kind}`);
       } else {
@@ -447,7 +466,10 @@ async function main(): Promise<void> {
       const e = err as ZeamError;
       pass("ZeamError.is(Kind.NotFound)", `code=${e.code} status=${e.status}`);
     } else if (err instanceof ZeamError) {
-      pass("ZeamError thrown", `kind=${(err as ZeamError).kind} status=${(err as ZeamError).status}`);
+      pass(
+        "ZeamError thrown",
+        `kind=${(err as ZeamError).kind} status=${(err as ZeamError).status}`,
+      );
     } else {
       fail("ZeamError taxonomy", err);
     }

@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { AutoRefresher, KeyringStore, MemoryStore, Session, Track, expiryFromExpiresIn } from "./index.js";
+import {
+  AutoRefresher,
+  KeyringStore,
+  MemoryStore,
+  Session,
+  Track,
+  expiryFromExpiresIn,
+} from "./index.js";
 
 describe("Session", () => {
-  function makeSession(overrides?: Partial<{ idToken: string; refreshToken: string; expiresAt: Date }>) {
+  function makeSession(
+    overrides?: Partial<{ idToken: string; refreshToken: string; expiresAt: Date }>,
+  ) {
     return new Session({
       track: Track.Business,
       idToken: overrides?.idToken ?? "id-1",
@@ -79,8 +88,18 @@ describe("MemoryStore", () => {
 
   it("close() erases all sessions", async () => {
     const store = new MemoryStore();
-    const biz = new Session({ track: Track.Business, idToken: "biz", refreshToken: "rb", expiresAt: new Date(Date.now() + 60_000) });
-    const con = new Session({ track: Track.Connect, idToken: "con", refreshToken: "rc", expiresAt: new Date(Date.now() + 60_000) });
+    const biz = new Session({
+      track: Track.Business,
+      idToken: "biz",
+      refreshToken: "rb",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const con = new Session({
+      track: Track.Connect,
+      idToken: "con",
+      refreshToken: "rc",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
     await store.put(biz);
     await store.put(con);
     await store.close();
@@ -144,7 +163,12 @@ describe("AutoRefresher", () => {
     await store.put(fresh);
 
     let calls = 0;
-    const refresher = { async refresh(s: Session) { calls++; return s; } };
+    const refresher = {
+      async refresh(s: Session) {
+        calls++;
+        return s;
+      },
+    };
     const ar = new AutoRefresher(store, refresher, 5 * 60_000);
 
     const sess = await ar.ensure(Track.Business);

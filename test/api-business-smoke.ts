@@ -10,26 +10,28 @@
 import * as readline from "node:readline/promises";
 import { getRawToken } from "./session-helper.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
-const BASE           = "https://api-gateway.zeam.app";
+const BASE = "https://api-gateway.zeam.app";
 const ASSOCIATION_ID = process.env.ZEAM_TEST_ASSOCIATION_ID ?? "";
 const BENEFICIARY_ID = process.env.ZEAM_TEST_BENEFICIARY_ID ?? "";
-const WALLET_ID      = process.env.ZEAM_TEST_WALLET_ID ?? "";
+const WALLET_ID = process.env.ZEAM_TEST_WALLET_ID ?? "";
 
 // Strip ANSI when piped to a file
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 let passed = 0;
@@ -55,9 +57,7 @@ async function call(
   console.log(`${BOLD}${CYAN}REQUEST  ${method} ${path}${RESET}`);
   console.log(HR2);
   for (const [k, v] of Object.entries(headers)) {
-    const display = k === "Authorization"
-      ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…`
-      : v;
+    const display = k === "Authorization" ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…` : v;
     console.log(`${k}: ${display}`);
   }
   if (body !== undefined) {
@@ -75,7 +75,11 @@ async function call(
 
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
 
   // ── response block ─────────────────────────────────────────────────────────
   const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
@@ -197,13 +201,12 @@ async function main(): Promise<void> {
   // Create wallet — upstream expects camelCase with a valid typeId UUID
   r = await call("POST", "/v1/business/wallet", token, {
     walletName: "SDK smoke test wallet",
-    typeId: "729db392-8c75-4c52-b7a1-af4b6f4157d9",  // Exchange Wallet
+    typeId: "729db392-8c75-4c52-b7a1-af4b6f4157d9", // Exchange Wallet
     networkId: "014b4ef6-5f0e-473a-95f9-8e01f2a06bf7", // Stellar
   });
   check("POST /business/wallet", r.status, r.data);
   const createdWalletId =
-    (r.data as { data?: { id?: string } })?.data?.id ??
-    (r.data as { id?: string })?.id;
+    (r.data as { data?: { id?: string } })?.data?.id ?? (r.data as { id?: string })?.id;
   console.log(`  ${DIM}created wallet id: ${createdWalletId ?? "none"}${RESET}`);
 
   // Update wallet — use created or fallback to known wallet
@@ -230,7 +233,7 @@ async function main(): Promise<void> {
   });
   check("POST /business/beneficiaries/:associationId", r.status, r.data);
   const createdBeneficiaryId =
-    ((r.data as { data?: { beneficiary?: { id?: string } } })?.data?.beneficiary?.id) ??
+    (r.data as { data?: { beneficiary?: { id?: string } } })?.data?.beneficiary?.id ??
     (r.data as { data?: { id?: string } })?.data?.id ??
     (r.data as { id?: string })?.id;
   console.log(`  ${DIM}created beneficiary id: ${createdBeneficiaryId ?? "none"}${RESET}`);
@@ -293,7 +296,8 @@ async function main(): Promise<void> {
   );
   check("POST /business/beneficiaries/:associationId/:id/payment-destinations", r.status, r.data);
   const createdDestId =
-    (r.data as { data?: { payment_destination?: { id?: string } } })?.data?.payment_destination?.id ??
+    (r.data as { data?: { payment_destination?: { id?: string } } })?.data?.payment_destination
+      ?.id ??
     (r.data as { data?: { id?: string } })?.data?.id ??
     (r.data as { id?: string })?.id;
   console.log(`  ${DIM}created destination id: ${createdDestId ?? "none"}${RESET}`);
@@ -305,23 +309,37 @@ async function main(): Promise<void> {
       token,
       { method: "MOMO", mobile_number: "+27845558888", country_iso: "ZA", is_primary: false },
     );
-    check("PUT /business/beneficiaries/:associationId/:id/payment-destinations/:destId", r.status, r.data);
+    check(
+      "PUT /business/beneficiaries/:associationId/:id/payment-destinations/:destId",
+      r.status,
+      r.data,
+    );
 
     r = await call(
       "PUT",
       `/v1/business/beneficiaries/${ASSOCIATION_ID}/${benId}/payment-destinations/${createdDestId}/primary`,
       token,
     );
-    check("PUT /business/beneficiaries/:associationId/:id/payment-destinations/:destId/primary", r.status, r.data);
+    check(
+      "PUT /business/beneficiaries/:associationId/:id/payment-destinations/:destId/primary",
+      r.status,
+      r.data,
+    );
 
     r = await call(
       "DELETE",
       `/v1/business/beneficiaries/${ASSOCIATION_ID}/${benId}/payment-destinations/${createdDestId}`,
       token,
     );
-    check("DELETE /business/beneficiaries/:associationId/:id/payment-destinations/:destId", r.status, r.data);
+    check(
+      "DELETE /business/beneficiaries/:associationId/:id/payment-destinations/:destId",
+      r.status,
+      r.data,
+    );
   } else {
-    console.log(`  ${YELLOW}– payment destination update/primary/delete skipped — no destId${RESET}`);
+    console.log(
+      `  ${YELLOW}– payment destination update/primary/delete skipped — no destId${RESET}`,
+    );
   }
 
   // ── Available connectors ───────────────────────────────────────────────────
@@ -332,7 +350,11 @@ async function main(): Promise<void> {
     `/v1/business/beneficiaries/getAvailableConnectors/${ASSOCIATION_ID}/${benId}/MOMO`,
     token,
   );
-  check("GET /business/beneficiaries/getAvailableConnectors/:assocId/:benId/:method", r.status, r.data);
+  check(
+    "GET /business/beneficiaries/getAvailableConnectors/:assocId/:benId/:method",
+    r.status,
+    r.data,
+  );
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
   if (createdBeneficiaryId) {

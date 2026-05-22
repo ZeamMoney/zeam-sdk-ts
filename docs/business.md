@@ -35,9 +35,9 @@ TypeScript interface merging gives full type safety on the flat API without dupl
 
 ## Associations
 
-| Method | Endpoint |
-|---|---|
-| `listAssociations(session)` | `GET /v1/business/association/all` |
+| Method                            | Endpoint                           |
+| --------------------------------- | ---------------------------------- |
+| `listAssociations(session)`       | `GET /v1/business/association/all` |
 | `getAssociationById(session, id)` | `GET /v1/business/association/:id` |
 
 Returns `Association[]` and `Association` respectively.
@@ -46,11 +46,11 @@ Returns `Association[]` and `Association` respectively.
 
 ## Assets
 
-| Method | Endpoint | Status |
-|---|---|---|
-| `listAssets(session)` | `GET /v1/business/asset` | ✅ |
-| `getAssetById(session, id)` | `GET /v1/business/asset/:id` | ⚠️ See below |
-| `listAssetDTOs(session)` | `GET /v1/business/asset/dto` | ✅ |
+| Method                         | Endpoint                         | Status       |
+| ------------------------------ | -------------------------------- | ------------ |
+| `listAssets(session)`          | `GET /v1/business/asset`         | ✅           |
+| `getAssetById(session, id)`    | `GET /v1/business/asset/:id`     | ⚠️ See below |
+| `listAssetDTOs(session)`       | `GET /v1/business/asset/dto`     | ✅           |
 | `getAssetDTOById(session, id)` | `GET /v1/business/asset/dto/:id` | ❌ See below |
 
 ### Asset vs AssetDTO
@@ -69,25 +69,33 @@ Returns `Association[]` and `Association` respectively.
 
 ## Wallets
 
-| Method | Endpoint |
-|---|---|
-| `listWalletsByAssociation(session, assocId)` | `GET /v1/business/wallet/association/:id` |
-| `listAllWallets(session)` | `GET /v1/business/wallet/all` |
-| `listWalletTypes(session)` | `GET /v1/business/wallet/type` |
-| `getWalletById(session, id)` | `GET /v1/business/wallet/:id` |
-| `getWalletDTOById(session, id)` | `GET /v1/business/wallet/dto/:id` |
-| `createWallet(session, input)` | `POST /v1/business/wallet` |
-| `updateWallet(session, id, input)` | `PUT /v1/business/wallet/:id` |
+| Method                                               | Endpoint                                   |
+| ---------------------------------------------------- | ------------------------------------------ |
+| `listWalletsByAssociation(session, assocId)`         | `GET /v1/business/wallet/association/:id`  |
+| `listAllWallets(session)`                            | `GET /v1/business/wallet/all`              |
+| `listWalletTypes(session)`                           | `GET /v1/business/wallet/type`             |
+| `getWalletById(session, id)`                         | `GET /v1/business/wallet/:id`              |
+| `getWalletDTOById(session, id)`                      | `GET /v1/business/wallet/dto/:id`          |
+| `createWallet(session, input)`                       | `POST /v1/business/wallet`                 |
+| `updateWallet(session, id, input)`                   | `PUT /v1/business/wallet/:id`              |
 | `executeWalletTransaction(session, walletId, input)` | `POST /v1/business/wallet/:id/transaction` |
 
 **`createWallet`** returns `{ id, publicKey, vaultId }` — not the full `Wallet` object.
 
 **`executeWalletTransaction`** returns the full transaction record:
+
 ```ts
 {
-  id, identityId, publicKey,
-  transactionHash, transactionXdr, resultXdr,
-  transactionDescription, amount, asset, createdAt
+  (id,
+    identityId,
+    publicKey,
+    transactionHash,
+    transactionXdr,
+    resultXdr,
+    transactionDescription,
+    amount,
+    asset,
+    createdAt);
 }
 ```
 
@@ -95,43 +103,44 @@ Returns `Association[]` and `Association` respectively.
 
 ## Beneficiaries
 
-| Method | Endpoint | Returns |
-|---|---|---|
-| `listBeneficiaries(session, assocId, params?)` | `GET /v1/business/beneficiaries/:assocId` | `{ beneficiaries: Beneficiary[], total? }` |
-| `getBeneficiary(session, assocId, id)` | `GET /v1/business/beneficiaries/:assocId/:id` | `{ beneficiary: Beneficiary }` |
-| `createBeneficiary(session, assocId, input)` | `POST /v1/business/beneficiaries/:assocId` | `{ beneficiary: Beneficiary }` |
-| `bulkCreateBeneficiaries(session, assocId, beneficiaries)` | `POST /v1/business/beneficiaries/:assocId/bulk` | `BulkCreateResult` |
-| `updateBeneficiary(session, assocId, id, input)` | `PUT /v1/business/beneficiaries/:assocId/:id` | `Beneficiary` |
-| `deleteBeneficiary(session, assocId, id)` | `DELETE /v1/business/beneficiaries/:assocId/:id` | `{}` |
+| Method                                                     | Endpoint                                         | Returns                                    |
+| ---------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| `listBeneficiaries(session, assocId, params?)`             | `GET /v1/business/beneficiaries/:assocId`        | `{ beneficiaries: Beneficiary[], total? }` |
+| `getBeneficiary(session, assocId, id)`                     | `GET /v1/business/beneficiaries/:assocId/:id`    | `{ beneficiary: Beneficiary }`             |
+| `createBeneficiary(session, assocId, input)`               | `POST /v1/business/beneficiaries/:assocId`       | `{ beneficiary: Beneficiary }`             |
+| `bulkCreateBeneficiaries(session, assocId, beneficiaries)` | `POST /v1/business/beneficiaries/:assocId/bulk`  | `BulkCreateResult`                         |
+| `updateBeneficiary(session, assocId, id, input)`           | `PUT /v1/business/beneficiaries/:assocId/:id`    | `Beneficiary`                              |
+| `deleteBeneficiary(session, assocId, id)`                  | `DELETE /v1/business/beneficiaries/:assocId/:id` | `{}`                                       |
 
 `listBeneficiaries` accepts an optional `BeneficiaryListParams` for filtering:
+
 ```ts
 { search?: string; beneficiary_type?: BeneficiaryType; payment_method?: PaymentMethod }
 ```
 
 ### Beneficiary tags
 
-| Method | Endpoint |
-|---|---|
-| `getBeneficiaryTags(session, assocId, id)` | `GET /v1/business/beneficiaries/:assocId/:id/tags` |
+| Method                                              | Endpoint                                           |
+| --------------------------------------------------- | -------------------------------------------------- |
+| `getBeneficiaryTags(session, assocId, id)`          | `GET /v1/business/beneficiaries/:assocId/:id/tags` |
 | `updateBeneficiaryTags(session, assocId, id, tags)` | `PUT /v1/business/beneficiaries/:assocId/:id/tags` |
 
 Returns `{ tags: string[], suggested_tags: string[] }`.
 
 ### Payment destinations
 
-| Method | Endpoint | Returns |
-|---|---|---|
-| `listPaymentDestinations(session, assocId, id, method?)` | `GET …/payment-destinations` | `{ payment_destinations: PaymentDestination[], total }` |
-| `addPaymentDestination(session, assocId, id, input)` | `POST …/payment-destinations` | `{ payment_destination: PaymentDestination }` |
-| `updatePaymentDestination(session, assocId, id, destId, input)` | `PUT …/payment-destinations/:destId` | `{ payment_destination: PaymentDestination }` |
-| `deletePaymentDestination(session, assocId, id, destId)` | `DELETE …/payment-destinations/:destId` | `{}` |
-| `setPaymentDestinationPrimary(session, assocId, id, destId)` | `PUT …/payment-destinations/:destId/primary` | `{}` |
+| Method                                                          | Endpoint                                     | Returns                                                 |
+| --------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------- |
+| `listPaymentDestinations(session, assocId, id, method?)`        | `GET …/payment-destinations`                 | `{ payment_destinations: PaymentDestination[], total }` |
+| `addPaymentDestination(session, assocId, id, input)`            | `POST …/payment-destinations`                | `{ payment_destination: PaymentDestination }`           |
+| `updatePaymentDestination(session, assocId, id, destId, input)` | `PUT …/payment-destinations/:destId`         | `{ payment_destination: PaymentDestination }`           |
+| `deletePaymentDestination(session, assocId, id, destId)`        | `DELETE …/payment-destinations/:destId`      | `{}`                                                    |
+| `setPaymentDestinationPrimary(session, assocId, id, destId)`    | `PUT …/payment-destinations/:destId/primary` | `{}`                                                    |
 
 ### Connectors
 
-| Method | Endpoint |
-|---|---|
+| Method                                                    | Endpoint                                                                        |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `getAvailableConnectors(session, assocId, benId, method)` | `GET /v1/business/beneficiaries/getAvailableConnectors/:assocId/:benId/:method` |
 
 Returns `{ connectors: { connectors: Connector[] } }`. `method` is a `PaymentMethod` value e.g. `"MOMO"`.

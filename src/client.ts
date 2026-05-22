@@ -1,4 +1,11 @@
-import { OTPFlow, SEP10Flow, MemoryStore, type Refresher, type Session, type TokenStore } from "./auth/index.js";
+import {
+  OTPFlow,
+  SEP10Flow,
+  MemoryStore,
+  type Refresher,
+  type Session,
+  type TokenStore,
+} from "./auth/index.js";
 import type { Environment } from "./environment.js";
 import { Environment as Env } from "./environment.js";
 import { IncompatibleGatewayError, ZeamError, kindFromStatus } from "./errors.js";

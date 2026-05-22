@@ -15,10 +15,12 @@ import { ConnectClient } from "../../src/client/connect/index.js";
 import type { QuoteRequest } from "../../src/client/connect/index.js";
 import { getSep10Session } from "../session-helper.js";
 
-try { process.loadEnvFile(new URL("../.env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL("../.env", import.meta.url));
+} catch {}
 
-const seed          = process.env.ZEAM_STELLAR_SEED!;
-const pubkey        = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
+const seed = process.env.ZEAM_STELLAR_SEED!;
+const pubkey = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
 const connectSecret = process.env.ZEAM_CONNECT_SECRET!;
 
 if (!seed || !pubkey || !connectSecret) {
@@ -30,10 +32,10 @@ if (!seed || !pubkey || !connectSecret) {
 
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
-const BOLD  = c("\x1b[1m");
-const DIM   = c("\x1b[2m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
 const GREEN = c("\x1b[32m");
-const RED   = c("\x1b[31m");
+const RED = c("\x1b[31m");
 const RESET = c("\x1b[0m");
 
 let passed = 0;
@@ -93,7 +95,9 @@ async function main(): Promise<void> {
   section("Assets");
   const assets = await run("connect.listConnectAssets()", () => connect.listConnectAssets(session));
   const firstAssetId = Array.isArray(assets) ? assets[0]?.id : undefined;
-  console.log(`${DIM}  count: ${Array.isArray(assets) ? assets.length : "—"}  first: ${firstAssetId ?? "—"}${RESET}`);
+  console.log(
+    `${DIM}  count: ${Array.isArray(assets) ? assets.length : "—"}  first: ${firstAssetId ?? "—"}${RESET}`,
+  );
 
   if (firstAssetId) {
     await run(`connect.getConnectAsset(${firstAssetId.slice(0, 8)}…)`, () =>
@@ -109,7 +113,9 @@ async function main(): Promise<void> {
   const connectorId = Array.isArray(connectors)
     ? connectors.find((c) => c.isActive)?.id
     : undefined;
-  console.log(`${DIM}  connectors: ${Array.isArray(connectors) ? connectors.length : "—"}  using: ${connectorId ?? "—"}${RESET}`);
+  console.log(
+    `${DIM}  connectors: ${Array.isArray(connectors) ? connectors.length : "—"}  using: ${connectorId ?? "—"}${RESET}`,
+  );
 
   // ── Quotes (SDK handles 402 passthrough) ────────────────────────────────────
   section("Quotes (SDK handles 402 as success)");
@@ -117,12 +123,14 @@ async function main(): Promise<void> {
     const quoteBody: QuoteRequest = { connectorId, amount: 1 };
 
     const q1 = await run("connect.getQuote()", () => connect.getQuote(session, quoteBody));
-    if (q1) console.log(`${DIM}  quoteId: ${q1.quoteId}  total: ${q1.total} ${q1.sendCurrency}${RESET}`);
+    if (q1)
+      console.log(`${DIM}  quoteId: ${q1.quoteId}  total: ${q1.total} ${q1.sendCurrency}${RESET}`);
 
     const q2 = await run("connect.getDirectionalQuote(Send)", () =>
       connect.getDirectionalQuote(session, "Send", quoteBody),
     );
-    if (q2) console.log(`${DIM}  quoteId: ${q2.quoteId}  total: ${q2.total} ${q2.sendCurrency}${RESET}`);
+    if (q2)
+      console.log(`${DIM}  quoteId: ${q2.quoteId}  total: ${q2.total} ${q2.sendCurrency}${RESET}`);
   } else {
     fail("Quotes skipped — no connector");
   }
@@ -134,7 +142,9 @@ async function main(): Promise<void> {
 
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log(`\n${"═".repeat(64)}`);
-  console.log(`  ${GREEN}${passed} passed${RESET}   ${failed > 0 ? RED : DIM}${failed} failed${RESET}`);
+  console.log(
+    `  ${GREEN}${passed} passed${RESET}   ${failed > 0 ? RED : DIM}${failed} failed${RESET}`,
+  );
   console.log(`${"═".repeat(64)}`);
   if (failed > 0) process.exit(1);
 }

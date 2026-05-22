@@ -44,7 +44,7 @@ const versionPath = resolve(repoRoot, "src", "version.ts");
 const versionSrc = await readFile(versionPath, "utf8");
 const updated = versionSrc.replace(
   /export const SPEC_HASH = "[0-9a-f]{64}";/,
-  `export const SPEC_HASH = "${digest}";`
+  `export const SPEC_HASH = "${digest}";`,
 );
 await writeFile(versionPath, updated);
 

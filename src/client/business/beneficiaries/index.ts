@@ -217,9 +217,11 @@ export function beneficiaryMethods(doer: Doer) {
       params?: BeneficiaryListParams,
       signal?: AbortSignal,
     ): Promise<BeneficiaryListResult> {
-      const query = params ? new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v !== undefined) as [string, string][]
-      ) : undefined;
+      const query = params
+        ? new URLSearchParams(
+            Object.entries(params).filter(([, v]) => v !== undefined) as [string, string][],
+          )
+        : undefined;
       return call<BeneficiaryListResult>(doer, {
         method: "GET",
         path: `/v1/business/beneficiaries/${encodeURIComponent(associationId)}`,

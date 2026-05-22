@@ -10,9 +10,11 @@
 import { Keypair as StellarKeypair, Transaction } from "@stellar/stellar-sdk";
 import { Client, Environment } from "../src/index.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
-const seed   = process.env.ZEAM_STELLAR_SEED!;
+const seed = process.env.ZEAM_STELLAR_SEED!;
 const pubkey = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
 
 if (!seed || !pubkey) {
@@ -23,15 +25,15 @@ if (!seed || !pubkey) {
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 let passed = 0;
@@ -48,16 +50,22 @@ function makeLoggingFetch(): typeof fetch {
 
     req.headers.forEach((v, k) => {
       const display =
-        k === "authorization" ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…` :
-        k === "x-zeam-auth"   ? `${v.slice(0, 16)}…` : v;
+        k === "authorization"
+          ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…`
+          : k === "x-zeam-auth"
+            ? `${v.slice(0, 16)}…`
+            : v;
       console.log(`${k}: ${display}`);
     });
 
     if (init?.body) {
       const bodyText = typeof init.body === "string" ? init.body : String(init.body);
       console.log("");
-      try { console.log(JSON.stringify(JSON.parse(bodyText), null, 2)); }
-      catch { console.log(bodyText); }
+      try {
+        console.log(JSON.stringify(JSON.parse(bodyText), null, 2));
+      } catch {
+        console.log(bodyText);
+      }
     }
 
     const start = Date.now();
@@ -67,14 +75,20 @@ function makeLoggingFetch(): typeof fetch {
     const clone = resp.clone();
     const rawBody = await clone.text();
     let parsed: unknown;
-    try { parsed = JSON.parse(rawBody); } catch { parsed = rawBody; }
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      parsed = rawBody;
+    }
 
     const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
     console.log(`\n${statusColor}RESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
     console.log(HR2);
 
     const keepHeaders = ["content-type", "x-request-id", "x-envoy-upstream-service-time", "cf-ray"];
-    resp.headers.forEach((v, k) => { if (keepHeaders.includes(k)) console.log(`${k}: ${v}`); });
+    resp.headers.forEach((v, k) => {
+      if (keepHeaders.includes(k)) console.log(`${k}: ${v}`);
+    });
     console.log("");
     console.log(JSON.stringify(parsed, null, 2));
 
@@ -110,7 +124,9 @@ async function main(): Promise<void> {
     fetchImpl: makeLoggingFetch(),
   });
 
-  console.log(`\n${BOLD}SEP-10 auth smoke test (SDK)${RESET}  ${DIM}${environment.baseURL}${RESET}`);
+  console.log(
+    `\n${BOLD}SEP-10 auth smoke test (SDK)${RESET}  ${DIM}${environment.baseURL}${RESET}`,
+  );
   console.log(`${DIM}account: ${pubkey}${RESET}`);
 
   // ── getChallenge ───────────────────────────────────────────────────────────
@@ -119,8 +135,13 @@ async function main(): Promise<void> {
   let challenge: Awaited<ReturnType<typeof client.sep10.getChallenge>> | undefined;
   try {
     challenge = await client.sep10.getChallenge(pubkey);
-    pass("client.sep10.getChallenge()", `xdr_len=${challenge.transaction.length}  network=${challenge.network_passphrase}`);
-  } catch (err) { fail("client.sep10.getChallenge()", err); }
+    pass(
+      "client.sep10.getChallenge()",
+      `xdr_len=${challenge.transaction.length}  network=${challenge.network_passphrase}`,
+    );
+  } catch (err) {
+    fail("client.sep10.getChallenge()", err);
+  }
 
   if (!challenge) process.exit(1);
 
@@ -140,8 +161,13 @@ async function main(): Promise<void> {
   let session: Awaited<ReturnType<typeof client.sep10.submitSigned>> | undefined;
   try {
     session = await client.sep10.submitSigned(signedXdr, pubkey);
-    pass("client.sep10.submitSigned()", `fingerprint=${session.fingerprint}  track=${session.track}`);
-  } catch (err) { fail("client.sep10.submitSigned()", err); }
+    pass(
+      "client.sep10.submitSigned()",
+      `fingerprint=${session.fingerprint}  track=${session.track}`,
+    );
+  } catch (err) {
+    fail("client.sep10.submitSigned()", err);
+  }
 
   if (!session) process.exit(1);
 
@@ -151,7 +177,9 @@ async function main(): Promise<void> {
   try {
     const refreshed = await client.sep10.refresh(session);
     pass("client.sep10.refresh()", `fingerprint=${refreshed.fingerprint}`);
-  } catch (err) { fail("client.sep10.refresh()", err); }
+  } catch (err) {
+    fail("client.sep10.refresh()", err);
+  }
 
   // ── Summary ────────────────────────────────────────────────────────────────
   console.log(`\n\n${"═".repeat(64)}`);

@@ -32,7 +32,10 @@ export function newFetcher(opts: FetcherOptions): (req: Request) => Promise<Resp
     }
 
     // Cloudflare bypass
-    req.headers.set("magic-header", "aebd4fda-a5e0-4734-8175-7c9bcee0c5495e844e91-d1eb-414d-a992-60cc540a126f");
+    req.headers.set(
+      "magic-header",
+      "aebd4fda-a5e0-4734-8175-7c9bcee0c5495e844e91-d1eb-414d-a992-60cc540a126f",
+    );
 
     // Idempotency-Key on mutating verbs
     if (isMutating(req.method) && !req.headers.has("Idempotency-Key")) {

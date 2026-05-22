@@ -10,20 +10,22 @@
 import * as readline from "node:readline/promises";
 import { Client, Environment } from "../src/index.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 let passed = 0;
@@ -40,16 +42,22 @@ function makeLoggingFetch(): typeof fetch {
 
     req.headers.forEach((v, k) => {
       const display =
-        k === "authorization" ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…` :
-        k === "x-zeam-auth"   ? `${v.slice(0, 16)}…` : v;
+        k === "authorization"
+          ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…`
+          : k === "x-zeam-auth"
+            ? `${v.slice(0, 16)}…`
+            : v;
       console.log(`${k}: ${display}`);
     });
 
     if (init?.body) {
       const bodyText = typeof init.body === "string" ? init.body : String(init.body);
       console.log("");
-      try { console.log(JSON.stringify(JSON.parse(bodyText), null, 2)); }
-      catch { console.log(bodyText); }
+      try {
+        console.log(JSON.stringify(JSON.parse(bodyText), null, 2));
+      } catch {
+        console.log(bodyText);
+      }
     }
 
     const start = Date.now();
@@ -59,14 +67,20 @@ function makeLoggingFetch(): typeof fetch {
     const clone = resp.clone();
     const rawBody = await clone.text();
     let parsed: unknown;
-    try { parsed = JSON.parse(rawBody); } catch { parsed = rawBody; }
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      parsed = rawBody;
+    }
 
     const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
     console.log(`\n${statusColor}RESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
     console.log(HR2);
 
     const keepHeaders = ["content-type", "x-request-id", "x-envoy-upstream-service-time", "cf-ray"];
-    resp.headers.forEach((v, k) => { if (keepHeaders.includes(k)) console.log(`${k}: ${v}`); });
+    resp.headers.forEach((v, k) => {
+      if (keepHeaders.includes(k)) console.log(`${k}: ${v}`);
+    });
     console.log("");
     console.log(JSON.stringify(parsed, null, 2));
 
@@ -119,9 +133,13 @@ async function main(): Promise<void> {
     const challenge = await client.otp.requestOTP({ mobileNumber: mobile });
     requestId = challenge.requestId;
     pass("client.otp.requestOTP()", `requestId=${requestId}`);
-  } catch (err) { fail("client.otp.requestOTP()", err); }
+  } catch (err) {
+    fail("client.otp.requestOTP()", err);
+  }
 
-  if (!requestId) { process.exit(1); }
+  if (!requestId) {
+    process.exit(1);
+  }
 
   // ── resendOTP ──────────────────────────────────────────────────────────────
   section("resendOTP");
@@ -129,7 +147,9 @@ async function main(): Promise<void> {
   try {
     await client.otp.resendOTP({ requestId });
     pass("client.otp.resendOTP()");
-  } catch (err) { fail("client.otp.resendOTP()", err); }
+  } catch (err) {
+    fail("client.otp.resendOTP()", err);
+  }
 
   // ── verifyOTP ──────────────────────────────────────────────────────────────
   section("verifyOTP");
@@ -141,9 +161,13 @@ async function main(): Promise<void> {
   try {
     session = await client.otp.verifyOTP({ requestId, code });
     pass("client.otp.verifyOTP()", `fingerprint=${session.fingerprint}`);
-  } catch (err) { fail("client.otp.verifyOTP()", err); }
+  } catch (err) {
+    fail("client.otp.verifyOTP()", err);
+  }
 
-  if (!session) { process.exit(1); }
+  if (!session) {
+    process.exit(1);
+  }
 
   // ── refresh ────────────────────────────────────────────────────────────────
   section("refresh");
@@ -151,7 +175,9 @@ async function main(): Promise<void> {
   try {
     const refreshed = await client.otp.refresh(session);
     pass("client.otp.refresh()", `fingerprint=${refreshed.fingerprint}`);
-  } catch (err) { fail("client.otp.refresh()", err); }
+  } catch (err) {
+    fail("client.otp.refresh()", err);
+  }
 
   // ── sign-up flow (optional) ────────────────────────────────────────────────
   const signupMobile = process.env.ZEAM_TEST_SIGNUP_MOBILE;
@@ -164,7 +190,9 @@ async function main(): Promise<void> {
       const challenge = await client.otp.requestSignUp({ mobileNumber: signupMobile });
       signupRequestId = challenge.requestId;
       pass("client.otp.requestSignUp()", `requestId=${signupRequestId}`);
-    } catch (err) { fail("client.otp.requestSignUp()", err); }
+    } catch (err) {
+      fail("client.otp.requestSignUp()", err);
+    }
 
     if (signupRequestId) {
       // verifySignUp
@@ -175,12 +203,19 @@ async function main(): Promise<void> {
       rl2.close();
 
       try {
-        const signupSess = await client.otp.verifySignUp({ requestId: signupRequestId, code: signupCode });
+        const signupSess = await client.otp.verifySignUp({
+          requestId: signupRequestId,
+          code: signupCode,
+        });
         pass("client.otp.verifySignUp()", `fingerprint=${signupSess.fingerprint}`);
-      } catch (err) { fail("client.otp.verifySignUp()", err); }
+      } catch (err) {
+        fail("client.otp.verifySignUp()", err);
+      }
     }
   } else {
-    console.log(`\n${DIM}sign-up flow skipped — set ZEAM_TEST_SIGNUP_MOBILE=+<number> to enable${RESET}`);
+    console.log(
+      `\n${DIM}sign-up flow skipped — set ZEAM_TEST_SIGNUP_MOBILE=+<number> to enable${RESET}`,
+    );
   }
 
   // ── summary ────────────────────────────────────────────────────────────────
@@ -190,4 +225,7 @@ async function main(): Promise<void> {
   if (failed > 0) process.exit(1);
 }
 
-main().catch((err) => { console.error("Fatal:", err); process.exit(1); });
+main().catch((err) => {
+  console.error("Fatal:", err);
+  process.exit(1);
+});

@@ -40,7 +40,8 @@ export type {
  */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface BusinessClient
-  extends ReturnType<typeof associationMethods>,
+  extends
+    ReturnType<typeof associationMethods>,
     ReturnType<typeof assetMethods>,
     ReturnType<typeof walletMethods>,
     ReturnType<typeof beneficiaryMethods> {}

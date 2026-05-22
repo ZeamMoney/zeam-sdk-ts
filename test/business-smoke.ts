@@ -12,21 +12,23 @@ import { Client, Environment } from "../src/index.js";
 import { BusinessClient } from "../src/client/business/index.js";
 import { getSession } from "./session-helper.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 // Strip ANSI when piped to a file
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 // ── verbose fetch wrapper ─────────────────────────────────────────────────────
@@ -42,8 +44,11 @@ function makeLoggingFetch(): typeof fetch {
 
     req.headers.forEach((v, k) => {
       const display =
-        k === "authorization" ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…` :
-        k === "x-zeam-auth"   ? `${v.slice(0, 16)}…` : v;
+        k === "authorization"
+          ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…`
+          : k === "x-zeam-auth"
+            ? `${v.slice(0, 16)}…`
+            : v;
       console.log(`${k}: ${display}`);
     });
 
@@ -64,7 +69,11 @@ function makeLoggingFetch(): typeof fetch {
     const clone = resp.clone();
     const rawBody = await clone.text();
     let parsed: unknown;
-    try { parsed = JSON.parse(rawBody); } catch { parsed = rawBody; }
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      parsed = rawBody;
+    }
 
     const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
     console.log(`\n${statusColor}RESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
@@ -132,7 +141,9 @@ async function main(): Promise<void> {
   const biz = new BusinessClient(client);
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-  console.log(`\n${BOLD}BusinessClient SDK smoke test${RESET}  ${DIM}${environment.baseURL}${RESET}`);
+  console.log(
+    `\n${BOLD}BusinessClient SDK smoke test${RESET}  ${DIM}${environment.baseURL}${RESET}`,
+  );
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   section("Auth — OTP");
@@ -158,13 +169,17 @@ async function main(): Promise<void> {
     const assocs = await biz.listAssociations(session);
     associationId = assocs[0]?.id;
     pass("listAssociations()", `count=${assocs.length}  first=${associationId}`);
-  } catch (err) { fail("listAssociations()", err); }
+  } catch (err) {
+    fail("listAssociations()", err);
+  }
 
   if (associationId) {
     try {
       const detail = await biz.getAssociationById(session, associationId);
       pass("getAssociationById()", `name=${detail.associationName}`);
-    } catch (err) { fail("getAssociationById()", err); }
+    } catch (err) {
+      fail("getAssociationById()", err);
+    }
   } else {
     skip("getAssociationById()", "no association ID");
   }
@@ -176,13 +191,17 @@ async function main(): Promise<void> {
     const assets = await biz.listAssets(session);
     assetId = assets[0]?.id;
     pass("listAssets()", `count=${assets.length}  first=${assetId}`);
-  } catch (err) { fail("listAssets()", err); }
+  } catch (err) {
+    fail("listAssets()", err);
+  }
 
   if (assetId) {
     try {
       const asset = await biz.getAssetById(session, assetId);
       pass("getAssetById()", `symbol=${asset.symbol}`);
-    } catch (err) { fail("getAssetById()", err); }
+    } catch (err) {
+      fail("getAssetById()", err);
+    }
   } else {
     skip("getAssetById()", "no asset ID");
   }
@@ -191,13 +210,17 @@ async function main(): Promise<void> {
     const dtos = await biz.listAssetDTOs(session);
     assetDTOId = dtos[0]?.assetID;
     pass("listAssetDTOs()", `count=${dtos.length}  first=${assetDTOId}`);
-  } catch (err) { fail("listAssetDTOs()", err); }
+  } catch (err) {
+    fail("listAssetDTOs()", err);
+  }
 
   if (assetDTOId) {
     try {
       const dto = await biz.getAssetDTOById(session, assetDTOId);
       pass("getAssetDTOById()", `symbol=${dto.symbol}`);
-    } catch (err) { fail("getAssetDTOById()", err); }
+    } catch (err) {
+      fail("getAssetDTOById()", err);
+    }
   } else {
     skip("getAssetDTOById()", "no DTO ID");
   }
@@ -208,19 +231,25 @@ async function main(): Promise<void> {
   try {
     const types = await biz.listWalletTypes(session);
     pass("listWalletTypes()", `count=${types.length}`);
-  } catch (err) { fail("listWalletTypes()", err); }
+  } catch (err) {
+    fail("listWalletTypes()", err);
+  }
 
   try {
     const all = await biz.listAllWallets(session);
     walletId = all[0]?.id;
     pass("listAllWallets()", `count=${all.length}  first=${walletId}`);
-  } catch (err) { fail("listAllWallets()", err); }
+  } catch (err) {
+    fail("listAllWallets()", err);
+  }
 
   if (associationId) {
     try {
       const assocWallets = await biz.listWalletsByAssociation(session, associationId);
       pass("listWalletsByAssociation()", `count=${assocWallets.length}`);
-    } catch (err) { fail("listWalletsByAssociation()", err); }
+    } catch (err) {
+      fail("listWalletsByAssociation()", err);
+    }
   } else {
     skip("listWalletsByAssociation()", "no association ID");
   }
@@ -229,12 +258,16 @@ async function main(): Promise<void> {
     try {
       const w = await biz.getWalletById(session, walletId);
       pass("getWalletById()", `name=${w.walletName}`);
-    } catch (err) { fail("getWalletById()", err); }
+    } catch (err) {
+      fail("getWalletById()", err);
+    }
 
     try {
       const dto = await biz.getWalletDTOById(session, walletId);
       pass("getWalletDTOById()", `name=${dto.walletName}`);
-    } catch (err) { fail("getWalletDTOById()", err); }
+    } catch (err) {
+      fail("getWalletDTOById()", err);
+    }
   } else {
     skip("getWalletById()", "no wallet ID");
     skip("getWalletDTOById()", "no wallet ID");
@@ -248,13 +281,17 @@ async function main(): Promise<void> {
     });
     createdWalletId = created.id;
     pass("createWallet()", `id=${createdWalletId}`);
-  } catch (err) { fail("createWallet()", err); }
+  } catch (err) {
+    fail("createWallet()", err);
+  }
 
   if (createdWalletId) {
     try {
       await biz.updateWallet(session, createdWalletId, { label: "SDK smoke test (updated)" });
       pass("updateWallet()", `id=${createdWalletId}`);
-    } catch (err) { fail("updateWallet()", err); }
+    } catch (err) {
+      fail("updateWallet()", err);
+    }
   } else {
     skip("updateWallet()", "createWallet() did not return an ID");
   }
@@ -270,11 +307,12 @@ async function main(): Promise<void> {
     });
     pass("stellarQuote()", `sendMax=${JSON.stringify(quote).slice(0, 60)}`);
   } catch (err) {
-    if (err instanceof Error && (
-      err.message.includes("not_found") ||
-      err.message.includes("validation") ||
-      err.message.includes("remote")
-    )) {
+    if (
+      err instanceof Error &&
+      (err.message.includes("not_found") ||
+        err.message.includes("validation") ||
+        err.message.includes("remote"))
+    ) {
       pass("stellarQuote()", "non-auth error — route reached, auth OK");
     } else {
       fail("stellarQuote()", err);
@@ -294,7 +332,9 @@ async function main(): Promise<void> {
         amount: "0.0000001",
       });
       pass("executeWalletTransaction()", `txHash=${tx.transactionHash}`);
-    } catch (err) { fail("executeWalletTransaction()", err); }
+    } catch (err) {
+      fail("executeWalletTransaction()", err);
+    }
   }
 
   // ── Beneficiaries ──────────────────────────────────────────────────────────
@@ -307,13 +347,21 @@ async function main(): Promise<void> {
       const bens = await biz.listBeneficiaries(session, associationId);
       beneficiaryId = bens.beneficiaries[0]?.id;
       pass("listBeneficiaries()", `count=${bens.beneficiaries.length}  first=${beneficiaryId}`);
-    } catch (err) { fail("listBeneficiaries()", err); }
+    } catch (err) {
+      fail("listBeneficiaries()", err);
+    }
 
     if (beneficiaryId) {
       try {
-        const { beneficiary: ben } = await biz.getBeneficiary(session, associationId, beneficiaryId);
+        const { beneficiary: ben } = await biz.getBeneficiary(
+          session,
+          associationId,
+          beneficiaryId,
+        );
         pass("getBeneficiary()", `id=${ben.id}`);
-      } catch (err) { fail("getBeneficiary()", err); }
+      } catch (err) {
+        fail("getBeneficiary()", err);
+      }
     } else {
       skip("getBeneficiary()", "no existing beneficiary");
     }
@@ -329,7 +377,9 @@ async function main(): Promise<void> {
       });
       createdBeneficiaryId = result.beneficiary.id;
       pass("createBeneficiary()", `id=${createdBeneficiaryId}`);
-    } catch (err) { fail("createBeneficiary()", err); }
+    } catch (err) {
+      fail("createBeneficiary()", err);
+    }
 
     try {
       await biz.bulkCreateBeneficiaries(session, associationId, [
@@ -343,7 +393,9 @@ async function main(): Promise<void> {
         },
       ]);
       pass("bulkCreateBeneficiaries()", "1 beneficiary");
-    } catch (err) { fail("bulkCreateBeneficiaries()", err); }
+    } catch (err) {
+      fail("bulkCreateBeneficiaries()", err);
+    }
 
     const benId = createdBeneficiaryId ?? beneficiaryId;
 
@@ -358,7 +410,9 @@ async function main(): Promise<void> {
           ],
         });
         pass("updateBeneficiary()", `id=${benId}`);
-      } catch (err) { fail("updateBeneficiary()", err); }
+      } catch (err) {
+        fail("updateBeneficiary()", err);
+      }
 
       // ── Beneficiary tags ─────────────────────────────────────────────────
       section("Beneficiary tags");
@@ -366,12 +420,16 @@ async function main(): Promise<void> {
       try {
         const tags = await biz.getBeneficiaryTags(session, associationId, benId);
         pass("getBeneficiaryTags()", `tags=${JSON.stringify(tags.tags)}`);
-      } catch (err) { fail("getBeneficiaryTags()", err); }
+      } catch (err) {
+        fail("getBeneficiaryTags()", err);
+      }
 
       try {
         await biz.updateBeneficiaryTags(session, associationId, benId, ["smoke-test", "sdk"]);
         pass("updateBeneficiaryTags()", 'tags=["smoke-test","sdk"]');
-      } catch (err) { fail("updateBeneficiaryTags()", err); }
+      } catch (err) {
+        fail("updateBeneficiaryTags()", err);
+      }
 
       // ── Payment destinations ─────────────────────────────────────────────
       section("Payment destinations");
@@ -379,7 +437,9 @@ async function main(): Promise<void> {
       try {
         const result = await biz.listPaymentDestinations(session, associationId, benId);
         pass("listPaymentDestinations()", `count=${result.total}`);
-      } catch (err) { fail("listPaymentDestinations()", err); }
+      } catch (err) {
+        fail("listPaymentDestinations()", err);
+      }
 
       try {
         const result = await biz.addPaymentDestination(session, associationId, benId, {
@@ -390,7 +450,9 @@ async function main(): Promise<void> {
         });
         paymentDestinationId = result.payment_destination.id;
         pass("addPaymentDestination()", `id=${paymentDestinationId}`);
-      } catch (err) { fail("addPaymentDestination()", err); }
+      } catch (err) {
+        fail("addPaymentDestination()", err);
+      }
 
       if (paymentDestinationId) {
         try {
@@ -401,17 +463,28 @@ async function main(): Promise<void> {
             is_primary: false,
           });
           pass("updatePaymentDestination()", `id=${paymentDestinationId}`);
-        } catch (err) { fail("updatePaymentDestination()", err); }
+        } catch (err) {
+          fail("updatePaymentDestination()", err);
+        }
 
         try {
-          await biz.setPaymentDestinationPrimary(session, associationId, benId, paymentDestinationId);
+          await biz.setPaymentDestinationPrimary(
+            session,
+            associationId,
+            benId,
+            paymentDestinationId,
+          );
           pass("setPaymentDestinationPrimary()", `id=${paymentDestinationId}`);
-        } catch (err) { fail("setPaymentDestinationPrimary()", err); }
+        } catch (err) {
+          fail("setPaymentDestinationPrimary()", err);
+        }
 
         try {
           await biz.deletePaymentDestination(session, associationId, benId, paymentDestinationId);
           pass("deletePaymentDestination()", `id=${paymentDestinationId}`);
-        } catch (err) { fail("deletePaymentDestination()", err); }
+        } catch (err) {
+          fail("deletePaymentDestination()", err);
+        }
       } else {
         skip("updatePaymentDestination()", "addPaymentDestination() did not return an ID");
         skip("setPaymentDestinationPrimary()", "addPaymentDestination() did not return an ID");
@@ -423,8 +496,13 @@ async function main(): Promise<void> {
 
       try {
         const result = await biz.getAvailableConnectors(session, associationId, benId, "MOMO");
-        pass("getAvailableConnectors()", `connectors=${JSON.stringify(result.connectors.connectors).slice(0, 60)}`);
-      } catch (err) { fail("getAvailableConnectors()", err); }
+        pass(
+          "getAvailableConnectors()",
+          `connectors=${JSON.stringify(result.connectors.connectors).slice(0, 60)}`,
+        );
+      } catch (err) {
+        fail("getAvailableConnectors()", err);
+      }
 
       // ── Cleanup ──────────────────────────────────────────────────────────
       if (createdBeneficiaryId) {
@@ -433,7 +511,9 @@ async function main(): Promise<void> {
         try {
           await biz.deleteBeneficiary(session, associationId, createdBeneficiaryId);
           pass("deleteBeneficiary()", `id=${createdBeneficiaryId}`);
-        } catch (err) { fail("deleteBeneficiary()", err); }
+        } catch (err) {
+          fail("deleteBeneficiary()", err);
+        }
       }
     } else {
       skip("updateBeneficiary / tags / payment-destinations / connectors", "no beneficiary ID");

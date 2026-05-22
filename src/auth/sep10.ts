@@ -47,7 +47,9 @@ export class SEP10Flow {
   async refresh(session: Session): Promise<Session> {
     if (session.track !== Track.Connect) throw new WrongTrackError();
     if (!this.credentials) {
-      throw new Error("auth: SEP10Flow requires { publicKey, secret } in the constructor to refresh");
+      throw new Error(
+        "auth: SEP10Flow requires { publicKey, secret } in the constructor to refresh",
+      );
     }
     const fresh = await this.signIn(this.credentials.publicKey, this.credentials.secret);
     session.update(fresh.idToken, fresh.refreshToken, fresh.expiresAt);
@@ -73,7 +75,12 @@ export class SEP10Flow {
       throw new Error(`auth: ${req.method} ${new URL(req.url).pathname} status ${resp.status}`);
     }
     const parsed = JSON.parse(raw) as { status?: number; data?: unknown };
-    if ("data" in parsed && typeof parsed.status === "number" && parsed.status >= 200 && parsed.status < 300) {
+    if (
+      "data" in parsed &&
+      typeof parsed.status === "number" &&
+      parsed.status >= 200 &&
+      parsed.status < 300
+    ) {
       return parsed.data as T;
     }
     return parsed as T;

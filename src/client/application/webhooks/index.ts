@@ -48,11 +48,7 @@ export interface AddWebhookResponse {
 
 export function webhookMethods(doer: Doer) {
   return {
-    listWebhooks(
-      session: Session,
-      id: string,
-      signal?: AbortSignal,
-    ): Promise<Webhook[]> {
+    listWebhooks(session: Session, id: string, signal?: AbortSignal): Promise<Webhook[]> {
       return call<Webhook[]>(doer, {
         method: "GET",
         path: `/v1/application/${encodeURIComponent(id)}/webhook`,

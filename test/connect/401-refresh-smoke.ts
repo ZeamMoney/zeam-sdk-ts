@@ -16,7 +16,9 @@ import { Session, Track, SEP10Flow } from "../../src/auth/index.js";
 import { newSigner, PublicNetworkPassphrase } from "../../src/stellar/index.js";
 import { ConnectClient } from "../../src/client/connect/index.js";
 
-try { process.loadEnvFile(new URL("../.env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL("../.env", import.meta.url));
+} catch {}
 
 const connectSecret = process.env.ZEAM_CONNECT_SECRET;
 if (!connectSecret) {
@@ -36,8 +38,7 @@ if (!stellarPublicKey) {
   process.exit(1);
 }
 
-const STORED_PATH =
-  `/tmp/zeam-sep10-${stellarPublicKey}.json`;
+const STORED_PATH = `/tmp/zeam-sep10-${stellarPublicKey}.json`;
 
 interface StoredSep10 {
   idToken: string;
@@ -63,12 +64,10 @@ const fingerprintBefore = session.fingerprint;
 console.log(`  fingerprint before: ${fingerprintBefore}`);
 
 const baseURL = new URL(Environment.Production.baseURL);
-const flow = new SEP10Flow(
-  baseURL,
-  (req) => fetch(req),
-  newSigner(PublicNetworkPassphrase),
-  { publicKey: stored.publicKey, secret: stellarSecret },
-);
+const flow = new SEP10Flow(baseURL, (req) => fetch(req), newSigner(PublicNetworkPassphrase), {
+  publicKey: stored.publicKey,
+  secret: stellarSecret,
+});
 
 const client = new Client({
   environment: Environment.Production,
@@ -87,7 +86,9 @@ const fingerprintAfter = session.fingerprint;
 
 console.log(`\n✓  Success — ${countries.length} countries returned`);
 console.log(`  fingerprint before: ${fingerprintBefore}`);
-console.log(`  fingerprint after:  ${fingerprintAfter}  ${fingerprintBefore !== fingerprintAfter ? "(token was refreshed)" : "(unchanged)"}`);
+console.log(
+  `  fingerprint after:  ${fingerprintAfter}  ${fingerprintBefore !== fingerprintAfter ? "(token was refreshed)" : "(unchanged)"}`,
+);
 console.log(`\n  Sample countries:`);
 for (const c of countries.slice(0, 5)) {
   console.log(`    ${c.isoCode ?? "??"}  ${c.name ?? ""}`);

@@ -9,22 +9,24 @@
 
 import * as readline from "node:readline/promises";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const BASE = "https://api-gateway.zeam.app";
 
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 let passed = 0;
@@ -63,13 +65,19 @@ async function call(
 
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
 
   const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
   console.log(`\n${statusColor}RESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
   console.log(HR2);
   const keepHeaders = ["content-type", "x-request-id", "x-envoy-upstream-service-time", "cf-ray"];
-  resp.headers.forEach((v, k) => { if (keepHeaders.includes(k)) console.log(`${k}: ${v}`); });
+  resp.headers.forEach((v, k) => {
+    if (keepHeaders.includes(k)) console.log(`${k}: ${v}`);
+  });
   console.log("");
   console.log(JSON.stringify(parsed, null, 2));
 
@@ -131,7 +139,8 @@ async function main(): Promise<void> {
 
   const verifyResp = await call("POST", "/v1/public/auth/verify-otp", "", { requestId, code });
   const idToken = (verifyResp.data as { data?: { idToken?: string } })?.data?.idToken;
-  const refreshToken = (verifyResp.data as { data?: { refreshToken?: string } })?.data?.refreshToken;
+  const refreshToken = (verifyResp.data as { data?: { refreshToken?: string } })?.data
+    ?.refreshToken;
   if (!idToken || !refreshToken) {
     fail("verifyOTP", "missing idToken or refreshToken");
     process.exit(1);
@@ -142,7 +151,8 @@ async function main(): Promise<void> {
   section("refresh");
 
   const refreshResp = await call("POST", "/v1/public/auth/refresh", "", { refreshToken });
-  const newToken = (refreshResp.data as { data?: { idToken?: string; accessToken?: string } })?.data;
+  const newToken = (refreshResp.data as { data?: { idToken?: string; accessToken?: string } })
+    ?.data;
   const newIdToken = newToken?.idToken ?? newToken?.accessToken;
   if (!newIdToken || refreshResp.status >= 300) {
     fail("refresh", `status=${refreshResp.status}`);
@@ -156,7 +166,9 @@ async function main(): Promise<void> {
     // 5. requestSignUp
     section("requestSignUp");
 
-    const signupResp = await call("POST", "/v1/public/auth/sign-up", "", { mobileNumber: signupMobile });
+    const signupResp = await call("POST", "/v1/public/auth/sign-up", "", {
+      mobileNumber: signupMobile,
+    });
     const signupRequestId = (signupResp.data as { data?: { requestId?: string } })?.data?.requestId;
     if (!signupRequestId) {
       fail("requestSignUp", "no requestId in response");
@@ -174,7 +186,8 @@ async function main(): Promise<void> {
         requestId: signupRequestId,
         code: signupCode,
       });
-      const signupIdToken = (signupVerifyResp.data as { data?: { idToken?: string } })?.data?.idToken;
+      const signupIdToken = (signupVerifyResp.data as { data?: { idToken?: string } })?.data
+        ?.idToken;
       if (!signupIdToken || signupVerifyResp.status >= 300) {
         fail("verifySignUp", `status=${signupVerifyResp.status}`);
       } else {
@@ -182,7 +195,9 @@ async function main(): Promise<void> {
       }
     }
   } else {
-    console.log(`\n${DIM}sign-up flow skipped — set ZEAM_TEST_SIGNUP_MOBILE=+<number> to enable${RESET}`);
+    console.log(
+      `\n${DIM}sign-up flow skipped — set ZEAM_TEST_SIGNUP_MOBILE=+<number> to enable${RESET}`,
+    );
   }
 
   // ── summary ────────────────────────────────────────────────────────────────
@@ -192,4 +207,7 @@ async function main(): Promise<void> {
   if (failed > 0) process.exit(1);
 }
 
-main().catch((err) => { console.error("Fatal:", err); process.exit(1); });
+main().catch((err) => {
+  console.error("Fatal:", err);
+  process.exit(1);
+});

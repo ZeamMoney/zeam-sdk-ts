@@ -29,13 +29,14 @@ export type UnwrapResult = { ok: true; data: unknown } | { ok: false; error: Env
  * bare-JSON endpoints). On non-2xx status returns an `EnvelopeError`.
  */
 export function unwrap(status: number, body: string, passthroughStatuses?: number[]): UnwrapResult {
-  if (status >= 200 && status < 300 || passthroughStatuses?.includes(status)) {
+  if ((status >= 200 && status < 300) || passthroughStatuses?.includes(status)) {
     try {
       const parsed = JSON.parse(body) as GatewayEnvelope;
       if (
         parsed &&
         typeof parsed.status === "number" &&
-        (parsed.status >= 200 && parsed.status < 300 || passthroughStatuses?.includes(parsed.status)) &&
+        ((parsed.status >= 200 && parsed.status < 300) ||
+          passthroughStatuses?.includes(parsed.status)) &&
         "data" in parsed
       ) {
         return { ok: true, data: parsed.data };

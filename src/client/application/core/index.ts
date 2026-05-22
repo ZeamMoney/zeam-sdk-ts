@@ -115,11 +115,7 @@ export function coreMethods(doer: Doer) {
       });
     },
 
-    lookup(
-      session: Session,
-      publicKey: string,
-      signal?: AbortSignal,
-    ): Promise<ApplicationRecord> {
+    lookup(session: Session, publicKey: string, signal?: AbortSignal): Promise<ApplicationRecord> {
       const q = new URLSearchParams({ publicKey });
       return call<ApplicationRecord>(doer, {
         method: "GET",
@@ -131,11 +127,7 @@ export function coreMethods(doer: Doer) {
       });
     },
 
-    getApplication(
-      session: Session,
-      id: string,
-      signal?: AbortSignal,
-    ): Promise<ApplicationRecord> {
+    getApplication(session: Session, id: string, signal?: AbortSignal): Promise<ApplicationRecord> {
       return call<ApplicationRecord>(doer, {
         method: "GET",
         path: `/v1/application/${encodeURIComponent(id)}`,

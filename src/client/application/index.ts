@@ -30,7 +30,8 @@ export type {
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export interface ApplicationClient
-  extends ReturnType<typeof coreMethods>,
+  extends
+    ReturnType<typeof coreMethods>,
     ReturnType<typeof lifecycleMethods>,
     ReturnType<typeof webhookMethods>,
     ReturnType<typeof credentialMethods> {}

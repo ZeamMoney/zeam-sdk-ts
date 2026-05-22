@@ -7,7 +7,14 @@ export interface TransitionInput {
   reason?: string;
 }
 
-function transition(doer: Doer, id: string, action: string, input: TransitionInput | undefined, session: Session, signal?: AbortSignal): Promise<ApplicationRecord> {
+function transition(
+  doer: Doer,
+  id: string,
+  action: string,
+  input: TransitionInput | undefined,
+  session: Session,
+  signal?: AbortSignal,
+): Promise<ApplicationRecord> {
   return call<ApplicationRecord>(doer, {
     method: "POST",
     path: `/v1/application/${encodeURIComponent(id)}/${action}`,

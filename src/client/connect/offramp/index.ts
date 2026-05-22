@@ -3,12 +3,7 @@ import type { Doer } from "../../../client.js";
 import { call } from "../../call.js";
 import type { ExecuteRequest, ExecuteResponse, OffRampRequest, OffRampResponse } from "../types.js";
 
-export type {
-  ExecuteRequest,
-  ExecuteResponse,
-  OffRampRequest,
-  OffRampResponse,
-} from "../types.js";
+export type { ExecuteRequest, ExecuteResponse, OffRampRequest, OffRampResponse } from "../types.js";
 
 export function offRampMethods(doer: Doer, connectSecret: string) {
   return {

@@ -90,11 +90,11 @@ short-lived credential container. Key rules:
 The `TokenStore` interface (`put`, `get`, `delete`, `close`) decouples
 session persistence from the auth flows.
 
-| Store | Status | Use case |
-|---|---|---|
-| `MemoryStore` | Default, always available | Containers, serverless, CLI one-shots |
-| `KeyringStore` | Phase 3 stub — throws on `put` | Desktop CLIs (OS bindings not yet wired) |
-| Custom implementation | Supported today | Cloud secret managers, HSMs |
+| Store                 | Status                         | Use case                                 |
+| --------------------- | ------------------------------ | ---------------------------------------- |
+| `MemoryStore`         | Default, always available      | Containers, serverless, CLI one-shots    |
+| `KeyringStore`        | Phase 3 stub — throws on `put` | Desktop CLIs (OS bindings not yet wired) |
+| Custom implementation | Supported today                | Cloud secret managers, HSMs              |
 
 **`MemoryStore` rules:**
 

@@ -58,11 +58,7 @@ export function associationMethods(doer: Doer) {
      * const assoc = await business.getAssociationById(session, "assoc-uuid");
      * console.log(assoc.typeName);
      */
-    getAssociationById(
-      session: Session,
-      id: string,
-      signal?: AbortSignal,
-    ): Promise<Association> {
+    getAssociationById(session: Session, id: string, signal?: AbortSignal): Promise<Association> {
       return call<Association>(doer, {
         method: "GET",
         path: `/v1/business/association/${encodeURIComponent(id)}`,

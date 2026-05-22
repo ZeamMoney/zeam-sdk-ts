@@ -9,11 +9,7 @@ export function quoteMethods(doer: Doer, connectSecret: string) {
   return {
     /** POST /v1/connect-quote → downstream /quote/send (direction always Send).
      *  Connect returns 402 "Payment Required" with the quote data on success. */
-    getQuote(
-      session: Session,
-      input: QuoteRequest,
-      signal?: AbortSignal,
-    ): Promise<QuoteResponse> {
+    getQuote(session: Session, input: QuoteRequest, signal?: AbortSignal): Promise<QuoteResponse> {
       return call<QuoteResponse>(doer, {
         method: "POST",
         path: "/v1/connect-quote",

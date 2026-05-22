@@ -31,33 +31,48 @@ import type { OffRampRequest, QuoteResponse } from "../../src/client/connect/ind
 import type { Session } from "../../src/auth/index.js";
 import { getSession } from "../session-helper.js";
 
-try { process.loadEnvFile(new URL("../.env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL("../.env", import.meta.url));
+} catch {}
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const mobile        = process.env.ZEAM_TEST_MOBILE!;
-const seed          = process.env.ZEAM_STELLAR_SEED!;
-const pubkey        = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
+const mobile = process.env.ZEAM_TEST_MOBILE!;
+const seed = process.env.ZEAM_STELLAR_SEED!;
+const pubkey = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
 const connectSecret = process.env.ZEAM_CONNECT_SECRET!;
 
 // Bank details for the offramp payout
 const bankAccountNumber = process.env.BANK_ACCOUNT_NUMBER!;
-const bankBranchCode    = process.env.BANK_BRANCH_CODE!;
-const bankAccountName   = process.env.BANK_ACCOUNT_NAME!;
-const bankAccountType   = process.env.BANK_ACCOUNT_TYPE ?? "Savings";
+const bankBranchCode = process.env.BANK_BRANCH_CODE!;
+const bankAccountName = process.env.BANK_ACCOUNT_NAME!;
+const bankAccountType = process.env.BANK_ACCOUNT_TYPE ?? "Savings";
 
 // Sender KYC
 const senderFirstName = process.env.SENDER_FIRST_NAME!;
-const senderLastName  = process.env.SENDER_LAST_NAME!;
-const senderMsisdn    = process.env.SENDER_MSISDN!;
-const senderIdNumber  = process.env.SENDER_ID_NUMBER ?? "0000000000000";
+const senderLastName = process.env.SENDER_LAST_NAME!;
+const senderMsisdn = process.env.SENDER_MSISDN!;
+const senderIdNumber = process.env.SENDER_ID_NUMBER ?? "0000000000000";
 
-const WALLET_NAME     = process.env.WALLET_NAME ?? "zarz_account";
-const CONNECTOR_ID    = process.env.ZEAM_TEST_CONNECTOR_ID ?? "";
-const AMOUNT          = 1; // 1 ZARZ send + 1 ZARZ fee = 2 ZARZ total
+const WALLET_NAME = process.env.WALLET_NAME ?? "zarz_account";
+const CONNECTOR_ID = process.env.ZEAM_TEST_CONNECTOR_ID ?? "";
+const AMOUNT = 1; // 1 ZARZ send + 1 ZARZ fee = 2 ZARZ total
 
-const required = { mobile, seed, pubkey, connectSecret, bankAccountNumber, bankBranchCode, bankAccountName, senderFirstName, senderLastName, senderMsisdn };
-const missing = Object.entries(required).filter(([, v]) => !v).map(([k]) => k);
+const required = {
+  mobile,
+  seed,
+  pubkey,
+  connectSecret,
+  bankAccountNumber,
+  bankBranchCode,
+  bankAccountName,
+  senderFirstName,
+  senderLastName,
+  senderMsisdn,
+};
+const missing = Object.entries(required)
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
 if (missing.length) {
   console.error(`Missing env vars: ${missing.join(", ")}`);
   process.exit(1);
@@ -65,13 +80,13 @@ if (missing.length) {
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
 
-const TTY   = process.stdout.isTTY ?? false;
-const c     = (code: string) => (TTY ? code : "");
-const BOLD  = c("\x1b[1m");
-const DIM   = c("\x1b[2m");
+const TTY = process.stdout.isTTY ?? false;
+const c = (code: string) => (TTY ? code : "");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
 const GREEN = c("\x1b[32m");
-const RED   = c("\x1b[31m");
-const CYAN  = c("\x1b[36m");
+const RED = c("\x1b[31m");
+const CYAN = c("\x1b[36m");
 const RESET = c("\x1b[0m");
 
 function step(n: number, title: string) {
@@ -128,11 +143,10 @@ async function main(): Promise<void> {
     console.log(`${GREEN}✓ Connect session: track=${connectSession.track}${RESET}`);
 
     const connect = new ConnectClient(client, connectSecret);
-    const quote: QuoteResponse = await connect.getDirectionalQuote(
-      connectSession,
-      "Send",
-      { connectorId: CONNECTOR_ID, amount: AMOUNT },
-    );
+    const quote: QuoteResponse = await connect.getDirectionalQuote(connectSession, "Send", {
+      connectorId: CONNECTOR_ID,
+      amount: AMOUNT,
+    });
     console.log(`${GREEN}✓ Quote created${RESET}`);
     console.log(`${DIM}  quoteId:    ${quote.quoteId}${RESET}`);
     console.log(`${DIM}  send:       ${quote.sendAmount} ${quote.sendCurrency}${RESET}`);
@@ -142,13 +156,19 @@ async function main(): Promise<void> {
     console.log(`${DIM}  expires:    ${quote.expiresAt}${RESET}`);
     console.log(`${DIM}  destination: ${quote.fundingInstructions?.destinationAccount}${RESET}`);
     console.log(`${DIM}  memo:       ${quote.fundingInstructions?.memo}${RESET}`);
-    console.log(`${DIM}  asset:      ${quote.fundingInstructions?.asset.code}:${quote.fundingInstructions?.asset.issuer}${RESET}`);
+    console.log(
+      `${DIM}  asset:      ${quote.fundingInstructions?.asset.code}:${quote.fundingInstructions?.asset.issuer}${RESET}`,
+    );
 
     // ── Step 4: Confirm ─────────────────────────────────────────────────────
     step(4, "Confirm");
-    console.log(`  Will send ${BOLD}${quote.total} ZARZ${RESET} from wallet "${wallet.walletName}"`);
+    console.log(
+      `  Will send ${BOLD}${quote.total} ZARZ${RESET} from wallet "${wallet.walletName}"`,
+    );
     console.log(`  To Connect clearing account: ${quote.fundingInstructions?.destinationAccount}`);
-    console.log(`  Bank payout: ${quote.receiveAmount} ZAR → ${bankAccountName} (${bankAccountNumber})`);
+    console.log(
+      `  Bank payout: ${quote.receiveAmount} ZAR → ${bankAccountName} (${bankAccountNumber})`,
+    );
     const confirm = (await rl.question(`\n  ${BOLD}Proceed? (y/N): ${RESET}`)).trim().toLowerCase();
     if (confirm !== "y") {
       console.log("Aborted.");
@@ -209,7 +229,9 @@ async function main(): Promise<void> {
         const status = await connect.getConnectStatus(connectSession, offRampResult.transactionId);
         console.log(`  [${i + 1}] status: ${status.status}`);
         if (status.status === "Successful") {
-          console.log(`\n${GREEN}${BOLD}✓ OffRamp complete! ${quote.receiveAmount} ZAR sent to ${bankAccountName}${RESET}`);
+          console.log(
+            `\n${GREEN}${BOLD}✓ OffRamp complete! ${quote.receiveAmount} ZAR sent to ${bankAccountName}${RESET}`,
+          );
           return;
         }
         if (status.status === "Failed" || status.status === "RefundFailed") {
@@ -220,8 +242,9 @@ async function main(): Promise<void> {
         console.log(`  [${i + 1}] poll error: ${err instanceof Error ? err.message : err}`);
       }
     }
-    console.log(`\n${DIM}  (stopped polling — check status manually: GET /v1/connect-status/${offRampResult.transactionId})${RESET}`);
-
+    console.log(
+      `\n${DIM}  (stopped polling — check status manually: GET /v1/connect-status/${offRampResult.transactionId})${RESET}`,
+    );
   } finally {
     rl.close();
   }

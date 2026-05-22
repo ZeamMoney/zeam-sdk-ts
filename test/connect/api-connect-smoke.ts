@@ -16,12 +16,14 @@
 
 import { getSep10Token } from "../session-helper.js";
 
-try { process.loadEnvFile(new URL("../.env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL("../.env", import.meta.url));
+} catch {}
 
 const BASE = "https://api-gateway.zeam.app";
 
-const seed          = process.env.ZEAM_STELLAR_SEED!;
-const pubkey        = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
+const seed = process.env.ZEAM_STELLAR_SEED!;
+const pubkey = process.env.ZEAM_STELLAR_PUBLIC_KEY!;
 const connectSecret = process.env.ZEAM_CONNECT_SECRET!;
 
 if (!seed || !pubkey || !connectSecret) {
@@ -33,10 +35,10 @@ if (!seed || !pubkey || !connectSecret) {
 
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
-const BOLD  = c("\x1b[1m");
-const DIM   = c("\x1b[2m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
 const GREEN = c("\x1b[32m");
-const RED   = c("\x1b[31m");
+const RED = c("\x1b[31m");
 const RESET = c("\x1b[0m");
 
 let passed = 0;
@@ -64,7 +66,11 @@ async function connect(
   });
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
   return { status: resp.status, data: parsed };
 }
 
@@ -150,9 +156,14 @@ async function main(): Promise<void> {
     r = await connect("POST", "/v1/connect-quote", token, { ConnectorId: connectorId, Amount: 1 });
     check("POST /v1/connect-quote", r.status, r.data, [402]);
     const quoteId = pick<string>(r.data, "data", "quoteId");
-    console.log(`${DIM}  quoteId: ${quoteId ?? "—"}  total: ${pick(r.data, "data", "total")} ZARZ${RESET}`);
+    console.log(
+      `${DIM}  quoteId: ${quoteId ?? "—"}  total: ${pick(r.data, "data", "total")} ZARZ${RESET}`,
+    );
 
-    r = await connect("POST", "/v1/connect-quote/Send", token, { ConnectorId: connectorId, Amount: 1 });
+    r = await connect("POST", "/v1/connect-quote/Send", token, {
+      ConnectorId: connectorId,
+      Amount: 1,
+    });
     check("POST /v1/connect-quote/Send", r.status, r.data, [402]);
   } else {
     fail("Quotes skipped — no connector");
@@ -168,7 +179,9 @@ async function main(): Promise<void> {
 
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log(`\n${"═".repeat(64)}`);
-  console.log(`  ${GREEN}${passed} passed${RESET}   ${failed > 0 ? RED : DIM}${failed} failed${RESET}`);
+  console.log(
+    `  ${GREEN}${passed} passed${RESET}   ${failed > 0 ? RED : DIM}${failed} failed${RESET}`,
+  );
   console.log(`${"═".repeat(64)}`);
   if (failed > 0) process.exit(1);
 }

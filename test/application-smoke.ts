@@ -22,20 +22,22 @@ import { Client, Environment, ZeamError, Kind } from "../src/index.js";
 import { ApplicationClient } from "../src/client/application/index.js";
 import { getSession } from "./session-helper.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
 
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const CYAN   = c("\x1b[36m");
-const RESET  = c("\x1b[0m");
+const CYAN = c("\x1b[36m");
+const RESET = c("\x1b[0m");
 
-const HR  = "━".repeat(64);
+const HR = "━".repeat(64);
 const HR2 = "─".repeat(64);
 
 function makeLoggingFetch(): typeof fetch {
@@ -49,16 +51,22 @@ function makeLoggingFetch(): typeof fetch {
 
     req.headers.forEach((v, k) => {
       const display =
-        k === "authorization" ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…` :
-        k === "magic-header"  ? `${v.slice(0, 16)}…` : v;
+        k === "authorization"
+          ? `Bearer ${v.replace("Bearer ", "").slice(0, 40)}…`
+          : k === "magic-header"
+            ? `${v.slice(0, 16)}…`
+            : v;
       console.log(`${k}: ${display}`);
     });
 
     if (init?.body) {
       const bodyText = typeof init.body === "string" ? init.body : String(init.body);
       console.log("");
-      try { console.log(JSON.stringify(JSON.parse(bodyText), null, 2)); }
-      catch { console.log(bodyText); }
+      try {
+        console.log(JSON.stringify(JSON.parse(bodyText), null, 2));
+      } catch {
+        console.log(bodyText);
+      }
     }
 
     const start = Date.now();
@@ -68,7 +76,11 @@ function makeLoggingFetch(): typeof fetch {
     const clone = resp.clone();
     const rawBody = await clone.text();
     let parsed: unknown;
-    try { parsed = JSON.parse(rawBody); } catch { parsed = rawBody; }
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      parsed = rawBody;
+    }
 
     const statusColor = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
     console.log(`\n${statusColor}RESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
@@ -133,16 +145,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const associationId  = process.env.ZEAM_TEST_ASSOCIATION_ID ?? "";
-  const webhookUrl     = process.env.ZEAM_TEST_WEBHOOK_URL ?? "https://webhook.site/test";
-  const envAppId      = process.env.ZEAM_TEST_APP_ID ?? "";
-  const envWebhookId  = process.env.ZEAM_TEST_WEBHOOK_ID ?? "";
-  const envPublicKey  = process.env.ZEAM_TEST_PUBLIC_KEY ?? "";
+  const associationId = process.env.ZEAM_TEST_ASSOCIATION_ID ?? "";
+  const webhookUrl = process.env.ZEAM_TEST_WEBHOOK_URL ?? "https://webhook.site/test";
+  const envAppId = process.env.ZEAM_TEST_APP_ID ?? "";
+  const envWebhookId = process.env.ZEAM_TEST_WEBHOOK_ID ?? "";
+  const envPublicKey = process.env.ZEAM_TEST_PUBLIC_KEY ?? "";
   const approvedAppId = process.env.ZEAM_TEST_APPROVED_APP_ID ?? "";
 
-  const baseURL     = process.env.ZEAM_API_URL;
+  const baseURL = process.env.ZEAM_API_URL;
   const environment = baseURL ? Environment.custom(baseURL) : Environment.Production;
-  const isInsecure  = baseURL?.startsWith("http://") ?? false;
+  const isInsecure = baseURL?.startsWith("http://") ?? false;
 
   const client = new Client({
     environment,
@@ -153,14 +165,16 @@ async function main(): Promise<void> {
   });
 
   const app = new ApplicationClient(client);
-  const rl  = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-  console.log(`\n${BOLD}ApplicationClient SDK smoke test${RESET}  ${DIM}${environment.baseURL}${RESET}`);
-  if (associationId)  console.log(`  ${DIM}ZEAM_TEST_ASSOCIATION_ID   = ${associationId}${RESET}`);
-  if (envAppId)       console.log(`  ${DIM}ZEAM_TEST_APP_ID           = ${envAppId}${RESET}`);
-  if (envWebhookId)   console.log(`  ${DIM}ZEAM_TEST_WEBHOOK_ID       = ${envWebhookId}${RESET}`);
-  if (envPublicKey)   console.log(`  ${DIM}ZEAM_TEST_PUBLIC_KEY       = ${envPublicKey}${RESET}`);
-  if (approvedAppId)  console.log(`  ${DIM}ZEAM_TEST_APPROVED_APP_ID = ${approvedAppId}${RESET}`);
+  console.log(
+    `\n${BOLD}ApplicationClient SDK smoke test${RESET}  ${DIM}${environment.baseURL}${RESET}`,
+  );
+  if (associationId) console.log(`  ${DIM}ZEAM_TEST_ASSOCIATION_ID   = ${associationId}${RESET}`);
+  if (envAppId) console.log(`  ${DIM}ZEAM_TEST_APP_ID           = ${envAppId}${RESET}`);
+  if (envWebhookId) console.log(`  ${DIM}ZEAM_TEST_WEBHOOK_ID       = ${envWebhookId}${RESET}`);
+  if (envPublicKey) console.log(`  ${DIM}ZEAM_TEST_PUBLIC_KEY       = ${envPublicKey}${RESET}`);
+  if (approvedAppId) console.log(`  ${DIM}ZEAM_TEST_APPROVED_APP_ID = ${approvedAppId}${RESET}`);
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   section("Auth — OTP");
@@ -169,7 +183,7 @@ async function main(): Promise<void> {
   rl.close();
   pass("session", `fingerprint=${session.fingerprint}`);
 
-  let probeAppId     = envAppId;
+  let probeAppId = envAppId;
   let probeWebhookId = envWebhookId;
 
   // ── listApplications() ────────────────────────────────────────────────────
@@ -182,7 +196,9 @@ async function main(): Promise<void> {
       const list = await app.listApplications(session, associationId);
       if (!probeAppId && list.length > 0) probeAppId = list[0].id;
       pass("ApplicationClient.listApplications()", `count=${list.length}`);
-    } catch (err) { checkZeamError("ApplicationClient.listApplications()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.listApplications()", err);
+    }
   }
 
   // ── lookup() ──────────────────────────────────────────────────────────────
@@ -194,7 +210,9 @@ async function main(): Promise<void> {
     try {
       const rec = await app.lookup(session, envPublicKey);
       pass("ApplicationClient.lookup()", `id=${rec.id}  status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.lookup()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.lookup()", err);
+    }
   }
 
   // ── getApplication() ──────────────────────────────────────────────────────
@@ -205,8 +223,13 @@ async function main(): Promise<void> {
   } else {
     try {
       const rec = await app.getApplication(session, probeAppId);
-      pass("ApplicationClient.getApplication()", `status=${rec.status}  activated=${rec.activated}`);
-    } catch (err) { checkZeamError("ApplicationClient.getApplication()", err); }
+      pass(
+        "ApplicationClient.getApplication()",
+        `status=${rec.status}  activated=${rec.activated}`,
+      );
+    } catch (err) {
+      checkZeamError("ApplicationClient.getApplication()", err);
+    }
   }
 
   // ── getApplicationEvents() ────────────────────────────────────────────────
@@ -218,7 +241,9 @@ async function main(): Promise<void> {
     try {
       const events = await app.getApplicationEvents(session, probeAppId);
       pass("ApplicationClient.getApplicationEvents()", `count=${events.length}`);
-    } catch (err) { checkZeamError("ApplicationClient.getApplicationEvents()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.getApplicationEvents()", err);
+    }
   }
 
   // ── provision() ───────────────────────────────────────────────────────────
@@ -236,35 +261,43 @@ async function main(): Promise<void> {
       });
       provisionedDraftId = rec.id;
       pass("ApplicationClient.provision()", `id=${rec.id}  status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.provision()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.provision()", err);
+    }
   }
 
   // ── register() ────────────────────────────────────────────────────────────
   section("ApplicationClient.register()");
 
   if (!associationId) {
-    console.log(`  ${YELLOW}⚠  ZEAM_TEST_ASSOCIATION_ID not set — register will likely 403${RESET}`);
+    console.log(
+      `  ${YELLOW}⚠  ZEAM_TEST_ASSOCIATION_ID not set — register will likely 403${RESET}`,
+    );
   }
 
   try {
     const resp = await app.register(session, {
-      associationId:   associationId || undefined,
+      associationId: associationId || undefined,
       applicationName: `sdk-smoke-test-app-${Date.now()}`,
       webhookUrl,
-      webhookMethod:   "POST",
+      webhookMethod: "POST",
     });
-    probeAppId     = resp.application.id;
+    probeAppId = resp.application.id;
     probeWebhookId = resp.webhookSecret.webhookId;
     pass(
       "ApplicationClient.register()",
       `appId=${resp.application.id}  apiKeyId=${resp.apiKey.keyId}  webhookId=${resp.webhookSecret.webhookId}`,
     );
     console.log(`  ${DIM}stellarPublicKey=${resp.stellar.publicKey}${RESET}`);
-    console.log(`  ${DIM}apiKeyLast4=${resp.apiKey.last4}  webhookLast4=${resp.webhookSecret.last4}${RESET}`);
+    console.log(
+      `  ${DIM}apiKeyLast4=${resp.apiKey.last4}  webhookLast4=${resp.webhookSecret.last4}${RESET}`,
+    );
     if (resp.warnings?.length) {
       console.log(`  ${YELLOW}warnings: ${JSON.stringify(resp.warnings)}${RESET}`);
     }
-  } catch (err) { checkZeamError("ApplicationClient.register()", err); }
+  } catch (err) {
+    checkZeamError("ApplicationClient.register()", err);
+  }
 
   // ── activate() ────────────────────────────────────────────────────────────
   // Provision a second fresh draft exclusively for the activate probe so the
@@ -285,7 +318,10 @@ async function main(): Promise<void> {
       activateDraftId = draft.id;
       console.log(`  ${DIM}activateDraftId = ${activateDraftId}${RESET}`);
     } catch (err) {
-      skip("ApplicationClient.activate()", `provision for activate probe failed: ${err instanceof Error ? err.message : String(err)}`);
+      skip(
+        "ApplicationClient.activate()",
+        `provision for activate probe failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
     if (activateDraftId) {
@@ -294,10 +330,17 @@ async function main(): Promise<void> {
           webhookUrl,
           webhookMethod: "POST",
         });
-        pass("ApplicationClient.activate()", `id=${rec.application.id}  status=${rec.application.status}`);
+        pass(
+          "ApplicationClient.activate()",
+          `id=${rec.application.id}  status=${rec.application.status}`,
+        );
         console.log(`  ${DIM}stellarPublicKey=${rec.stellar.publicKey}${RESET}`);
-        console.log(`  ${DIM}apiKeyLast4=${rec.apiKey.last4}  webhookLast4=${rec.webhookSecret.last4}${RESET}`);
-      } catch (err) { checkZeamError("ApplicationClient.activate()", err); }
+        console.log(
+          `  ${DIM}apiKeyLast4=${rec.apiKey.last4}  webhookLast4=${rec.webhookSecret.last4}${RESET}`,
+        );
+      } catch (err) {
+        checkZeamError("ApplicationClient.activate()", err);
+      }
     }
   }
 
@@ -312,7 +355,9 @@ async function main(): Promise<void> {
     try {
       const rec = await app.submit(session, provisionedDraftId);
       pass("ApplicationClient.submit()", `status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.submit()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.submit()", err);
+    }
   }
 
   // ── approve() ─────────────────────────────────────────────────────────────
@@ -324,7 +369,9 @@ async function main(): Promise<void> {
     try {
       const rec = await app.approve(session, probeAppId);
       pass("ApplicationClient.approve()", `status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.approve()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.approve()", err);
+    }
   }
 
   // ── reject() ──────────────────────────────────────────────────────────────
@@ -336,7 +383,9 @@ async function main(): Promise<void> {
     try {
       const rec = await app.reject(session, probeAppId, { reason: "sdk-smoke-test" });
       pass("ApplicationClient.reject()", `status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.reject()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.reject()", err);
+    }
   }
 
   // ── suspend() ─────────────────────────────────────────────────────────────
@@ -347,25 +396,35 @@ async function main(): Promise<void> {
   let suspendSucceeded = false;
 
   if (!approvedAppId) {
-    skip("ApplicationClient.suspend()", "set ZEAM_TEST_APPROVED_APP_ID (app approved by a different user)");
+    skip(
+      "ApplicationClient.suspend()",
+      "set ZEAM_TEST_APPROVED_APP_ID (app approved by a different user)",
+    );
   } else {
     try {
       const rec = await app.suspend(session, approvedAppId);
       suspendSucceeded = true;
       pass("ApplicationClient.suspend()", `status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.suspend()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.suspend()", err);
+    }
   }
 
   // ── resume() ──────────────────────────────────────────────────────────────
   section("ApplicationClient.resume()");
 
   if (!approvedAppId || !suspendSucceeded) {
-    skip("ApplicationClient.resume()", approvedAppId ? "suspend() did not succeed" : "set ZEAM_TEST_APPROVED_APP_ID");
+    skip(
+      "ApplicationClient.resume()",
+      approvedAppId ? "suspend() did not succeed" : "set ZEAM_TEST_APPROVED_APP_ID",
+    );
   } else {
     try {
       const rec = await app.resume(session, approvedAppId);
       pass("ApplicationClient.resume()", `status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.resume()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.resume()", err);
+    }
   }
 
   // ── revoke() ──────────────────────────────────────────────────────────────
@@ -378,7 +437,9 @@ async function main(): Promise<void> {
     try {
       const rec = await app.revoke(session, provisionedDraftId, { reason: "sdk-smoke-test" });
       pass("ApplicationClient.revoke()", `status=${rec.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.revoke()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.revoke()", err);
+    }
   }
 
   // ── rotateCredential() ────────────────────────────────────────────────────
@@ -393,7 +454,9 @@ async function main(): Promise<void> {
     try {
       const resp = await app.rotateCredential(session, probeAppId);
       pass("ApplicationClient.rotateCredential()", `keyId=${resp.keyId}  last4=${resp.last4}`);
-    } catch (err) { checkZeamError("ApplicationClient.rotateCredential()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.rotateCredential()", err);
+    }
   }
 
   // ── tokenSmokeTest() ──────────────────────────────────────────────────────
@@ -407,7 +470,10 @@ async function main(): Promise<void> {
       pass("ApplicationClient.tokenSmokeTest()", JSON.stringify(resp).slice(0, 80));
     } catch (err) {
       if (err instanceof ZeamError && (err as ZeamError).status === 501) {
-        skip("ApplicationClient.tokenSmokeTest()", "501 — signer resolver not configured in this environment");
+        skip(
+          "ApplicationClient.tokenSmokeTest()",
+          "501 — signer resolver not configured in this environment",
+        );
       } else {
         checkZeamError("ApplicationClient.tokenSmokeTest()", err);
       }
@@ -426,7 +492,9 @@ async function main(): Promise<void> {
       const hooks = await app.listWebhooks(session, probeAppId);
       if (hooks.length > 0 && !probeWebhookId) probeWebhookForCrud = hooks[0].id;
       pass("ApplicationClient.listWebhooks()", `count=${hooks.length}`);
-    } catch (err) { checkZeamError("ApplicationClient.listWebhooks()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.listWebhooks()", err);
+    }
   }
 
   // ── addWebhook() ──────────────────────────────────────────────────────────
@@ -440,14 +508,19 @@ async function main(): Promise<void> {
     try {
       const smokeUrl = `${webhookUrl}?smoke=${Date.now()}`;
       const result = await app.addWebhook(session, probeAppId, {
-        url:           smokeUrl,
+        url: smokeUrl,
         webhookMethod: "POST",
-        authScheme:    "none",
-        description:   "sdk-smoke-test",
+        authScheme: "none",
+        description: "sdk-smoke-test",
       });
       addedWebhookId = result.webhook.id;
-      pass("ApplicationClient.addWebhook()", `id=${result.webhook.id}  status=${result.webhook.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.addWebhook()", err); }
+      pass(
+        "ApplicationClient.addWebhook()",
+        `id=${result.webhook.id}  status=${result.webhook.status}`,
+      );
+    } catch (err) {
+      checkZeamError("ApplicationClient.addWebhook()", err);
+    }
   }
 
   // ── updateWebhook() ───────────────────────────────────────────────────────
@@ -463,7 +536,9 @@ async function main(): Promise<void> {
         description: "sdk-smoke-test-updated",
       });
       pass("ApplicationClient.updateWebhook()", `id=${hook.id}  status=${hook.status}`);
-    } catch (err) { checkZeamError("ApplicationClient.updateWebhook()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.updateWebhook()", err);
+    }
   }
 
   // ── deleteWebhook() ───────────────────────────────────────────────────────
@@ -478,7 +553,9 @@ async function main(): Promise<void> {
     try {
       await app.deleteWebhook(session, probeAppId, addedWebhookId);
       pass("ApplicationClient.deleteWebhook()", `webhookId=${addedWebhookId}`);
-    } catch (err) { checkZeamError("ApplicationClient.deleteWebhook()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.deleteWebhook()", err);
+    }
   }
 
   // ── rotateWebhookSecret() ─────────────────────────────────────────────────
@@ -498,7 +575,9 @@ async function main(): Promise<void> {
         "ApplicationClient.rotateWebhookSecret()",
         `webhookId=${resp.webhookId}  last4=${resp.last4}`,
       );
-    } catch (err) { checkZeamError("ApplicationClient.rotateWebhookSecret()", err); }
+    } catch (err) {
+      checkZeamError("ApplicationClient.rotateWebhookSecret()", err);
+    }
   }
 
   // ── Summary ────────────────────────────────────────────────────────────────

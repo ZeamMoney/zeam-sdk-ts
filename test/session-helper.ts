@@ -17,7 +17,9 @@ import type { Client } from "../src/index.js";
 import { Session } from "../src/auth/session.js";
 import type { Track } from "../src/auth/tracks.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const BASE = "https://api-gateway.zeam.app";
 
@@ -61,7 +63,9 @@ function loadStored(mobile: string): StoredSession | null {
   }
 }
 
-async function rawRefresh(refreshToken: string): Promise<{ idToken: string; refreshToken: string } | null> {
+async function rawRefresh(
+  refreshToken: string,
+): Promise<{ idToken: string; refreshToken: string } | null> {
   try {
     const resp = await fetch(`${BASE}/v1/public/auth/refresh`, {
       method: "POST",
@@ -69,7 +73,9 @@ async function rawRefresh(refreshToken: string): Promise<{ idToken: string; refr
       body: JSON.stringify({ refreshToken }),
     });
     if (!resp.ok) return null;
-    const body = await resp.json() as { data?: { accessToken?: string; idToken?: string; refreshToken?: string } };
+    const body = (await resp.json()) as {
+      data?: { accessToken?: string; idToken?: string; refreshToken?: string };
+    };
     const newToken = body.data?.accessToken ?? body.data?.idToken;
     const newRefresh = body.data?.refreshToken;
     if (!newToken || !newRefresh) return null;
@@ -79,13 +85,16 @@ async function rawRefresh(refreshToken: string): Promise<{ idToken: string; refr
   }
 }
 
-async function rawOtp(mobile: string, rl: readline.Interface): Promise<{ idToken: string; refreshToken: string }> {
+async function rawOtp(
+  mobile: string,
+  rl: readline.Interface,
+): Promise<{ idToken: string; refreshToken: string }> {
   const challengeResp = await fetch(`${BASE}/v1/public/auth/request-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ mobileNumber: mobile }),
   });
-  const challengeBody = await challengeResp.json() as { data?: { requestId?: string } };
+  const challengeBody = (await challengeResp.json()) as { data?: { requestId?: string } };
   const requestId = challengeBody.data?.requestId;
   if (!requestId) throw new Error("session-helper: no requestId from request-otp");
 
@@ -96,7 +105,9 @@ async function rawOtp(mobile: string, rl: readline.Interface): Promise<{ idToken
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ requestId, code }),
   });
-  const verifyBody = await verifyResp.json() as { data?: { idToken?: string; refreshToken?: string } };
+  const verifyBody = (await verifyResp.json()) as {
+    data?: { idToken?: string; refreshToken?: string };
+  };
   const idToken = verifyBody.data?.idToken;
   const refreshToken = verifyBody.data?.refreshToken;
   if (!idToken || !refreshToken) throw new Error("session-helper: no tokens from verify-otp");
@@ -163,7 +174,10 @@ function loadStoredSep10(publicKey: string): StoredSep10Session | null {
   }
 }
 
-async function sep10SignIn(publicKey: string, secret: string): Promise<{ idToken: string; refreshToken: string }> {
+async function sep10SignIn(
+  publicKey: string,
+  secret: string,
+): Promise<{ idToken: string; refreshToken: string }> {
   const resp = await fetch(`${BASE}/v1/public/auth-connect/sign-in`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -173,8 +187,9 @@ async function sep10SignIn(publicKey: string, secret: string): Promise<{ idToken
     const body = await resp.text();
     throw new Error(`SEP-10 sign-in failed: ${resp.status} ${body}`);
   }
-  const body = await resp.json() as { idToken?: string; refreshToken?: string };
-  if (!body.idToken || !body.refreshToken) throw new Error("SEP-10 sign-in: missing tokens in response");
+  const body = (await resp.json()) as { idToken?: string; refreshToken?: string };
+  if (!body.idToken || !body.refreshToken)
+    throw new Error("SEP-10 sign-in: missing tokens in response");
   return { idToken: body.idToken, refreshToken: body.refreshToken };
 }
 
@@ -241,10 +256,7 @@ export async function getSep10Session(publicKey: string, secret: string): Promis
  * Returns a valid idToken string using raw fetch (no SDK dependency).
  * Reuses a cached session (refresh) if possible, otherwise runs the OTP flow.
  */
-export async function getRawToken(
-  mobile: string,
-  rl: readline.Interface,
-): Promise<string> {
+export async function getRawToken(mobile: string, rl: readline.Interface): Promise<string> {
   const stored = loadStored(mobile);
   if (stored) {
     const refreshed = await rawRefresh(stored.refreshToken);

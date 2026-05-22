@@ -7,7 +7,9 @@
 import * as readline from "node:readline/promises";
 import { getRawToken } from "./session-helper.js";
 
-try { process.loadEnvFile(new URL(".env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL(".env", import.meta.url));
+} catch {}
 
 const BASE = "https://api-gateway.zeam.app";
 
@@ -25,7 +27,11 @@ async function call(method: string, path: string, token: string): Promise<void> 
 
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
 
   console.log(`\nRESPONSE  ${resp.status} ${resp.statusText}  (${ms}ms)`);
   console.log("─".repeat(64));
@@ -34,7 +40,10 @@ async function call(method: string, path: string, token: string): Promise<void> 
 
 async function main(): Promise<void> {
   const mobile = process.env.ZEAM_TEST_MOBILE;
-  if (!mobile) { console.error("set ZEAM_TEST_MOBILE=+<number>"); process.exit(1); }
+  if (!mobile) {
+    console.error("set ZEAM_TEST_MOBILE=+<number>");
+    process.exit(1);
+  }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const token = await getRawToken(mobile, rl);
@@ -45,4 +54,7 @@ async function main(): Promise<void> {
   await call("GET", "/v1/business/asset/dto/1c46a28a-47a9-45bb-9765-37c05361ac35", token);
 }
 
-main().catch((err) => { console.error("Fatal:", err); process.exit(1); });
+main().catch((err) => {
+  console.error("Fatal:", err);
+  process.exit(1);
+});

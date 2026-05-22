@@ -15,7 +15,9 @@
 
 import { getSep10Token } from "../session-helper.js";
 
-try { process.loadEnvFile(new URL("../.env", import.meta.url)); } catch {}
+try {
+  process.loadEnvFile(new URL("../.env", import.meta.url));
+} catch {}
 
 const BASE = process.env.CONNECT_HOST ?? "http://localhost:8099";
 const PUBKEY = process.env.ZEAM_STELLAR_PUBLIC_KEY ?? "";
@@ -25,12 +27,12 @@ let SECRET = process.env.CONNECT_SECRET ?? "";
 
 const TTY = process.stdout.isTTY ?? false;
 const c = (code: string) => (TTY ? code : "");
-const BOLD   = c("\x1b[1m");
-const DIM    = c("\x1b[2m");
-const GREEN  = c("\x1b[32m");
-const RED    = c("\x1b[31m");
+const BOLD = c("\x1b[1m");
+const DIM = c("\x1b[2m");
+const GREEN = c("\x1b[32m");
+const RED = c("\x1b[31m");
 const YELLOW = c("\x1b[33m");
-const RESET  = c("\x1b[0m");
+const RESET = c("\x1b[0m");
 
 let passed = 0;
 let failed = 0;
@@ -59,7 +61,11 @@ async function call(
 
   const raw = await resp.text();
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
 
   const col = resp.status < 300 ? GREEN : resp.status < 500 ? YELLOW : RED;
   console.log(`\n${col}${method} ${path}  ${resp.status} ${resp.statusText}  (${ms}ms)${RESET}`);
@@ -79,7 +85,7 @@ async function gql(query: string): Promise<unknown> {
     },
     body: JSON.stringify({ query }),
   });
-  const json = await resp.json() as { data?: unknown; errors?: unknown[] };
+  const json = (await resp.json()) as { data?: unknown; errors?: unknown[] };
   if (json.errors?.length) throw new Error(JSON.stringify(json.errors, null, 2));
   return json.data;
 }
@@ -154,10 +160,12 @@ async function main(): Promise<void> {
   console.log(`\n${BOLD}Connect localhost smoke test${RESET}  ${DIM}${BASE}${RESET}`);
 
   if (!SECRET) {
-    const seed   = process.env.ZEAM_STELLAR_SEED;
+    const seed = process.env.ZEAM_STELLAR_SEED;
     const pubkey = process.env.ZEAM_STELLAR_PUBLIC_KEY;
     if (!seed || !pubkey) {
-      console.error(`\n${RED}Set CONNECT_SECRET or both ZEAM_STELLAR_SEED + ZEAM_STELLAR_PUBLIC_KEY${RESET}`);
+      console.error(
+        `\n${RED}Set CONNECT_SECRET or both ZEAM_STELLAR_SEED + ZEAM_STELLAR_PUBLIC_KEY${RESET}`,
+      );
       process.exit(1);
     }
     SECRET = await getSep10Token(pubkey, seed);
@@ -172,7 +180,9 @@ async function main(): Promise<void> {
   let offRampConnectorId = "";
   let onRampConnectorId = "";
 
-  async function discoverConnector(direction: string): Promise<{ id: string; name: string } | undefined> {
+  async function discoverConnector(
+    direction: string,
+  ): Promise<{ id: string; name: string } | undefined> {
     const data = await gql(`query {
       connectors {
         connectors(country: ZA, method: BANK, direction: ${direction}) {
@@ -180,7 +190,9 @@ async function main(): Promise<void> {
         }
       }
     }`);
-    const list = pick<{ id: string; name: string; isActive: boolean }[]>(data, "connectors", "connectors") ?? [];
+    const list =
+      pick<{ id: string; name: string; isActive: boolean }[]>(data, "connectors", "connectors") ??
+      [];
     return list.find((c) => c.isActive) ?? list[0];
   }
 
@@ -254,19 +266,24 @@ async function main(): Promise<void> {
   if (offRampConnectorId) {
     const offrampQuoteId = await freshQuote("send", offRampConnectorId);
     if (offrampQuoteId) {
-      await run("POST /api/v1/offramp", () => call("POST", "/api/v1/offramp", {
-        Reference: `smoke-offramp-${Date.now()}`,
-        QuoteId: offrampQuoteId,
-        TransactionHash: "0000000000000000000000000000000000000000000000000000000000000000",
-        RefundAccount: { Account: PUBKEY },
-      }), (name, status, data) => {
-        // 402 "payment not found" is expected without a real Stellar tx
-        if (status === 402) {
-          pass(name, `${status} — quote accepted, awaiting Stellar payment (expected)`);
-        } else {
-          check(name, status, data);
-        }
-      });
+      await run(
+        "POST /api/v1/offramp",
+        () =>
+          call("POST", "/api/v1/offramp", {
+            Reference: `smoke-offramp-${Date.now()}`,
+            QuoteId: offrampQuoteId,
+            TransactionHash: "0000000000000000000000000000000000000000000000000000000000000000",
+            RefundAccount: { Account: PUBKEY },
+          }),
+        (name, status, data) => {
+          // 402 "payment not found" is expected without a real Stellar tx
+          if (status === 402) {
+            pass(name, `${status} — quote accepted, awaiting Stellar payment (expected)`);
+          } else {
+            check(name, status, data);
+          }
+        },
+      );
     } else {
       fail("POST /api/v1/offramp", "skipped — no quote ID available");
     }
@@ -279,11 +296,16 @@ async function main(): Promise<void> {
   if (onRampConnectorId) {
     const onrampQuoteId = await freshQuote("Receive", onRampConnectorId);
     if (onrampQuoteId) {
-      await run("POST /api/v1/onramp", () => call("POST", "/api/v1/onramp", {
-        Reference: `smoke-onramp-${Date.now()}`,
-        QuoteId: onrampQuoteId,
-        SettlementAccount: { Account: PUBKEY },
-      }), check);
+      await run(
+        "POST /api/v1/onramp",
+        () =>
+          call("POST", "/api/v1/onramp", {
+            Reference: `smoke-onramp-${Date.now()}`,
+            QuoteId: onrampQuoteId,
+            SettlementAccount: { Account: PUBKEY },
+          }),
+        check,
+      );
     } else {
       fail("POST /api/v1/onramp", "skipped — no quote ID available");
     }
@@ -292,7 +314,9 @@ async function main(): Promise<void> {
   }
 
   // cash-in: skipped — MediatR handler not registered (Connect backend bug)
-  console.log(`\n${YELLOW}⚠  SKIP  POST /api/v1/onramp/cash-in — MediatR handler not registered (backend DI bug)${RESET}`);
+  console.log(
+    `\n${YELLOW}⚠  SKIP  POST /api/v1/onramp/cash-in — MediatR handler not registered (backend DI bug)${RESET}`,
+  );
 
   // ── Transaction status ─────────────────────────────────────────────────────
   // We don't have a real transaction from the ramps above, so this will 404.
