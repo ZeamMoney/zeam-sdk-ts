@@ -46,6 +46,7 @@ export default [
       // both a namespace-style value and a type with the same name. The
       // core `no-redeclare` rule cannot see TypeScript type declarations.
       "no-redeclare": "off",
+      "no-empty": ["error", { allowEmptyCatch: true }],
       "no-console": ["warn", { allow: ["warn", "error"] }],
       eqeqeq: ["error", "smart"],
     },
@@ -64,6 +65,6 @@ export default [
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**", "coverage/**"],
+    ignores: ["dist/**", "node_modules/**", "coverage/**", ".claude/**"],
   },
 ];

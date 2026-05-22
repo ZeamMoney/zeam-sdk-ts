@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   let businessSession: Session | undefined;
   let firstAssociationId: string | undefined;
   let firstWalletId: string | undefined;
-  let firstWalletPubKey: string | undefined;
+  let _firstWalletPubKey: string | undefined;
 
   // ── 1. Health / version handshake ─────────────────────────────────────────
   section("1 · Health & version handshake");
@@ -195,7 +195,7 @@ async function main(): Promise<void> {
       try {
         const wallets = await biz.listWalletsByAssociation(sess, firstAssociationId);
         firstWalletId = wallets[0]?.id;
-        firstWalletPubKey = wallets[0]?.publicKey;
+        _firstWalletPubKey = wallets[0]?.publicKey;
         pass(
           "BusinessClient.listWalletsByAssociation()",
           `count=${wallets.length}${firstWalletId ? ` first=${firstWalletId}` : ""}`,

@@ -28,7 +28,7 @@ import { Client, Environment } from "../../src/index.js";
 import { BusinessClient } from "../../src/client/business/index.js";
 import { ConnectClient } from "../../src/client/connect/index.js";
 import type { OffRampRequest, QuoteResponse } from "../../src/client/connect/index.js";
-import type { Session } from "../../src/auth/index.js";
+
 import { getSession } from "../session-helper.js";
 
 try {
