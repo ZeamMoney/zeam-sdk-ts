@@ -7,7 +7,9 @@ Evidence date: 2026-11-05. Reviewed commit:
 This is the evidence register, not the execution sequence. Use the
 [remediation runbook](security-remediation-plan.md) for session order,
 checkboxes, gates and handoffs. Locations refer to the reviewed revision and
-must be rechecked before implementation. All items below are OPEN.
+must be rechecked before implementation. Original evidence below is retained.
+Current status: TEST-02 is locally remediated by S01 (2026-11-05), pending independent
+pre-merge review. TEST-01 and TEST-04 are partial; every other item remains OPEN.
 
 ## Evidence and limitations
 
@@ -178,6 +180,11 @@ Acceptance: discover every runtime implementation; exclude only actual barrels,
 types or generated code with justification. Test important success/failure
 branches and enforce explicit global and security-module coverage floors in CI.
 
+S01 update (2026-11-05): measurement now includes all runtime implementations and
+is protected by a source-inventory assertion. Full coverage is statements 48.52%,
+branches 43.16%, functions 36.00%, lines 50.88% over 50 files. Status remains PARTIAL:
+behavioral coverage and blocking floors belong to S12.
+
 ### TEST-02 - SSRF tests accept unrelated failures
 
 Location: `src/client/connect/connect.test.ts:10-27`. Assigned session: S01.
@@ -188,6 +195,13 @@ reaching fetch can satisfy the same assertion; guard removal can remain green.
 Acceptance: test exact validation failures, zero fetch calls, and positive
 allowed paths with valid sessions. A targeted guard-removal mutation must fail
 the relevant test rather than produce another accepted exception.
+
+S01 update (2026-11-05): locally remediated. Sixteen connector tests include exact
+errors, zero-fetch rejection, valid Connect sessions, positive method/path/body/
+credential assertions and transport-error propagation. The exec guard-removal
+mutant passed the old 8 cases but fails all 10 strengthened invalid-path cases;
+all 6 controls still pass. RED checkpoint `389c532`, GREEN checkpoint `8246e2d`.
+Independent review remains required before merge.
 
 ### TEST-03 - Contract discovery and test typing are broken
 
@@ -214,6 +228,10 @@ and test commits do not establish local Red/Green order.
 Acceptance: retain this historical limitation; record authentic failing-before
 and passing-after evidence for new work. Never retroactively label the old
 implementation test-first.
+
+S01 update (2026-11-05): authentic coverage-policy RED and GREEN evidence is
+recorded in the runbook and local checkpoint commits `389c532` / `8246e2d`.
+Historical limitations are unchanged; status remains PARTIAL until S16.
 
 ## Operational and supply-chain findings
 

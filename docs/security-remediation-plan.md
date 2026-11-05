@@ -1,7 +1,7 @@
 # SDK security remediation - multi-session TDD runbook
 
-Status: PHASE 1 IN PROGRESS. Created 2026-11-05. S01 authorized for local
-implementation and commit; later phases remain unstarted.
+Status: PHASE 1 COMPLETE (2026-11-05). S01 implemented and committed locally;
+independent pre-merge review remains required. Later phases remain unstarted.
 
 This document executes the [findings register](security-review-findings.md).
 The register preserves what was found and why; this runbook defines order,
@@ -128,33 +128,53 @@ Standing baseline limitations:
 
 ## Phase 1 - Restore trustworthy tests
 
-Status: IN PROGRESS (2026-11-05).
+Status: COMPLETE (2026-11-05), local validation. Independent review pending before merge.
 
-### S01 - Harness and non-vacuous guards (TEST-01, TEST-02, TEST-04) - IN PROGRESS
+### S01 - Harness and non-vacuous guards (TEST-01, TEST-02, TEST-04) - DONE
 
 Depends on: G01/G02. Branch: `fix/remediation-s01-test-harness`.
 Files expected: `vitest.config.ts`, `src/client/connect/connect.test.ts`,
 `src/transport/transport.test.ts`, `package.json`; NEW `test/unit/harness.test.ts`.
+
+Files as built: `vitest.config.ts`, `src/client/connect/connect.test.ts`,
+`test/unit/harness.test.ts`, `docs/security-remediation-plan.md`,
+`docs/security-review-findings.md`. No runtime implementation, package dependency
+or transport-test change was required.
 
 TDD tasks:
 
 - [x] RED: prove runtime index implementations are omitted from coverage and
       prove a guard-removal mutation is not detected by the current SSRF tests.
 - [x] Verify RED: distinguish a reached-fetch exception from a real guard failure.
-- [ ] GREEN: include real implementations; assert specific errors and zero fetches,
+- [x] GREEN: include real implementations; assert specific errors and zero fetches,
       with valid-session allowed-path success tests.
-- [ ] Verify GREEN: run `npm test` and `npm run test:coverage`; record full
+- [x] Verify GREEN: run `npm test` and `npm run test:coverage`; record full
       denominators and retain the unmodified historical baseline in the register.
-- [ ] REFACTOR: keep reusable offline fixtures at boundaries; establish the
+- [x] REFACTOR: keep reusable offline fixtures at boundaries; establish the
       Red/Green evidence format without claiming historic TDD compliance.
 
 Definition of Done:
 
-- [ ] Gate A passes at the stated baseline; targeted guard mutation is killed.
-- [ ] G01/G02 decisions, actual file list, coverage metrics and handoff are logged.
+- [x] Gate A passes at the stated baseline; targeted guard mutation is killed.
+- [x] G01/G02 decisions, actual file list, coverage metrics and handoff are logged.
 
-Amendments: none yet.
-Handoff: later sessions can rely on meaningful guard tests and complete measurement.
+Amendments:
+
+- Approved branch exception and accountable owner are recorded under G01/G02.
+  Independent review is explicitly deferred to the pre-merge gate, not claimed done.
+- Removed both the blanket index exclusion and the nonexistent internal/wire
+  exclusion. All actual source files are measured; future source exclusions require
+  a deliberate inventory-policy change and review.
+- Fixture responses are injected at Doer.fetch and use non-operational test inputs.
+  No production service, credential or secret was used.
+- RED checkpoint `389c532` intentionally contains a failing coverage-policy test.
+  GREEN checkpoint `8246e2d` fixes it; later sessions should start from the completed
+  session tip, not the standalone RED checkpoint.
+
+Handoff: S02 can rely on meaningful guard tests and complete measurement. TEST-02
+is locally resolved; TEST-01 awaits S12 floors and behavioral coverage, and TEST-04
+awaits the final S16 evidence review. Node 22 and independent review remain future
+gates; this session ran on Node 25.5.0.
 
 ## Phase 2 - Authentication and transport safety
 
@@ -616,7 +636,8 @@ pass. Include a dated evidence reference in the Progress Log.
 - [ ] SEC-09 - S07 - exact amounts.
 - [ ] SEC-10 - S13 - workflow input safety.
 - [ ] TEST-01 - S01/S12 - truthful coverage and blocking floors.
-- [ ] TEST-02 - S01 - non-vacuous guard tests.
+- [x] TEST-02 - S01 - non-vacuous guard tests (2026-11-05; local acceptance,
+      independent review remains a pre-merge gate).
 - [ ] TEST-03 - S10/S11 - maintained typing and opt-in contracts.
 - [ ] TEST-04 - S01/S16 - authentic future TDD evidence.
 - [ ] OPS-01 - S15 - release/protection gates.
@@ -630,6 +651,10 @@ pass. Include a dated evidence reference in the Progress Log.
 
 - 2026-11-05: Plan is documentation only. User authorization to draft does not
   authorize executing any session or Git/cloud operation.
+- 2026-11-05: Subsequent user instruction authorized Phase 1 implementation,
+  progress updates and local commits. The user explicitly approved the S01
+  origin/main branch exception and owner/review arrangement. This supersedes the
+  planning-only authorization for S01, not for later sessions or remote actions.
 - 2026-11-05: Supplied team branch workflow overrides conflicting generic MCP
   examples, but the missing repository integration-branch mapping is G02, not
   an inferred permission to use main.
@@ -642,6 +667,44 @@ pass. Include a dated evidence reference in the Progress Log.
   a gate or remove an item from the register.
 
 ## Progress Log
+
+### 2026-11-05 - S01 - COMPLETE, local validation
+
+- Implemented only Phase 1 on `fix/remediation-s01-test-harness`, base `c8f9952`.
+  RED checkpoint: `389c532`; GREEN checkpoint: `8246e2d`. The final documentation
+  checkpoint adds no executable changes. Independent review is still required
+  before merge; no push, merge or live operation was performed.
+- Runtime remains Node 25.5.0. `npm test` and `npm run test:coverage`: exit 0,
+  80 tests/6 files (baseline 71/5). Connector suite now has 16 tests instead of 8;
+  one new filesystem inventory test checks every source implementation against
+  the coverage config and ensures test files are not measured.
+- Coverage: 50 files; statements 363/748 (48.52%), branches 221/512 (43.16%),
+  functions 72/200 (36.00%), lines 344/676 (50.88%). Coverage excludes only source
+  tests. These complete-source denominators differ from the original baseline.
+- Mutation proof: in an isolated source copy, delete the exec guard block from
+  `if (!path)` through the line before `const clean`. Legacy tests: exit 0,
+  8 passed. Copy in the strengthened test file and run the same mutation:
+  exit 1, exactly 10 invalid-path tests fail and all 6 controls pass.
+  The mutant was never written into the real source tree.
+- Mutation command: `./node_modules/.bin/vitest run --root "$S01_MUTANT" --config
+"$S01_MUTANT/vitest.config.ts" src/client/connect/connect.test.ts --reporter=json
+--outputFile "$S01_MUTANT/strengthened-result.json"`. The isolated copy contains
+  src, package.json and vitest.config.ts with a node_modules symlink to installed
+  dependencies; no tool installation or network access is required.
+- Gate A: `npm test`, `npm run typecheck`, `npm run lint`,
+  `npm run format:check`, `npm run build`, and `git diff --check` all exit 0.
+  Lint retains exactly the six baseline warnings; no new warnings.
+- Maintained test-typecheck diagnostic at RED: exit 2, unchanged 61 errors/11 files,
+  none in the changed tests. It remains assigned to S10; no blanket exclusions
+  or suppression were added to hide it.
+- Actual files: vitest.config.ts, src/client/connect/connect.test.ts,
+  test/unit/harness.test.ts and both remediation documents. Runtime source files
+  are unchanged. Package.json and transport tests were inspected but not modified.
+- Closed locally: TEST-02. Partial: TEST-01 (measurement fixed, S12 gates open)
+  and TEST-04 (authentic new checkpoint evidence, S16 review open).
+- Next: S02 principal binding/refresh isolation. Reconfirm the next session's base
+  and preserve this completed session tip; no general branch-policy exception
+  or later-phase execution approval is inferred.
 
 ### 2026-11-05 - S01 - RED checkpoint
 
