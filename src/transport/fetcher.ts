@@ -26,6 +26,8 @@ export function newFetcher(opts: FetcherOptions): (req: Request) => Promise<Resp
   const baseFetch = opts.fetchImpl ?? fetch;
 
   return async function doRequest(req: Request): Promise<Response> {
+    // Never forward credential-bearing bodies or custom headers to redirects.
+    req = new Request(req, { redirect: "error" });
     // User-Agent
     if (!req.headers.has("User-Agent")) {
       req.headers.set("User-Agent", opts.userAgent);

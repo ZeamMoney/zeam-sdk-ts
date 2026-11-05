@@ -76,6 +76,54 @@ describe("verify", () => {
     await verify(build(body, ts), SECRET, opts);
     await expect(verify(build(body, ts), SECRET, opts)).rejects.toMatchObject({ reason: "replay" });
   });
+
+  it.each(["changed", "missing"])("rejects replay with a %s event ID", async (variant) => {
+    const ts = Math.floor(Date.now() / 1000);
+    const opts = { replayCache: new LRU(16) };
+    await verify(build("{}", ts), SECRET, opts);
+    const req = build("{}", ts);
+    if (variant === "missing") req.headers.delete(HeaderEventID);
+    else req.headers.set(HeaderEventID, "different-event");
+    await expect(verify(req, SECRET, opts)).rejects.toMatchObject({ reason: "replay" });
+  });
+
+  it("rejects trailing non-hex signature data", async () => {
+    const req = build("{}", Math.floor(Date.now() / 1000));
+    req.headers.set(HeaderSignature, `${req.headers.get(HeaderSignature)}zz`);
+    await expect(verify(req, SECRET)).rejects.toMatchObject({ reason: "bad_signature" });
+  });
+
+  it("enforces the body limit in bytes, not characters", async () => {
+    const body = "é".repeat(1024 * 1024 + 1);
+    await expect(verify(build(body, Math.floor(Date.now() / 1000)), SECRET)).rejects.toMatchObject({
+      reason: "body_too_large",
+    });
+  });
+
+  it("cancels oversized streams before reading the whole body", async () => {
+    const ts = Math.floor(Date.now() / 1000);
+    let reads = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        reads++;
+        controller.enqueue(new Uint8Array(1024 * 1024));
+        if (reads === 10) controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const req = new Request("https://example.invalid/webhook", {
+      method: "POST",
+      headers: { [HeaderSignature]: sign(ts, ""), [HeaderTimestamp]: String(ts) },
+      body: stream,
+      duplex: "half",
+    } as RequestInit);
+    await expect(verify(req, SECRET)).rejects.toMatchObject({ reason: "body_too_large" });
+    expect(cancelled).toBe(true);
+    expect(reads).toBeLessThan(10);
+  });
 });
 
 describe("handler", () => {
