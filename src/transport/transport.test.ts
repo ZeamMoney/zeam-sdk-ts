@@ -2,7 +2,30 @@ import { describe, expect, it } from "vitest";
 import { unwrap } from "./envelope.js";
 import { fingerprint, redact } from "./redaction.js";
 import { computeBackoff, isRetryableStatus } from "./retry.js";
-import { isMutating } from "./fetcher.js";
+import { isMutating, newFetcher } from "./fetcher.js";
+
+describe("transport security", () => {
+  it.each(["follow", "manual", "error"] as const)(
+    "disables redirects even in %s mode",
+    async (redirect) => {
+      const send = newFetcher({
+        userAgent: "security-test",
+        fetchImpl: async (input) => {
+          const req = input as Request;
+          expect(req.redirect).toBe("error");
+          return new Response(null, { status: 204 });
+        },
+      });
+      await send(
+        new Request("https://example.invalid/auth", {
+          method: "POST",
+          body: "credential",
+          redirect,
+        }),
+      );
+    },
+  );
+});
 
 describe("unwrap", () => {
   it("returns inner data on a standard gateway success envelope", () => {

@@ -9,7 +9,14 @@ SDK version `vA.B.C` targets gateway version `vA.B.≥0`. See
 
 ## [Unreleased]
 
-_No changes yet._
+### Security
+
+- Upgrade Vitest and its coverage provider to patched 4.1 releases and refresh
+  vulnerable transitive development dependencies.
+- Audit development dependencies as well as production dependencies in CI.
+- Reject HTTP redirects to prevent credential forwarding.
+- Enforce webhook body limits while streaming bytes and strictly validate HMAC
+  encoding. Bind replay-cache keys to authenticated content, not unsigned event IDs.
 
 ## [0.1.0] — 2026-04-23
 

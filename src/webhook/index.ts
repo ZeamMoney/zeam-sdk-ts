@@ -24,12 +24,38 @@ export class WebhookError extends Error {
     super(`webhook: ${reason}`);
   }
 }
+async function readBoundedBody(req: Request): Promise<Buffer> {
+  if (!req.body) return Buffer.alloc(0);
+  const reader = req.body.getReader();
+  const chunks: Buffer[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_BODY_SIZE) {
+        try {
+          await reader.cancel();
+        } catch {
+          // Preserve the size-limit error if the producer fails cancellation.
+        }
+        throw new WebhookError("body_too_large");
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, size);
+}
 
 /**
  * Replay-cache interface. Implementations must be safe for concurrent
  * use. {@link LRU} is a bounded in-memory cache shipped with the SDK.
  */
 export interface ReplayCache {
+  /** The key identifies authenticated content, not the unsigned event-ID header. */
   seen(eventId: string, ttlMs: number): boolean;
 }
 
@@ -63,19 +89,19 @@ export async function verify(
     throw new WebhookError("stale_timestamp");
   }
 
-  // Enforce the body-size cap. Reading via .text() will materialise the
-  // whole body; we check Content-Length first to short-circuit DoS.
+  if (!/^[a-fA-F0-9]{64}$/.test(sig)) throw new WebhookError("bad_signature");
+
+  // Content-Length is only an early rejection; enforce the cap on actual bytes.
   const lengthHeader = req.headers.get("content-length");
   if (lengthHeader && Number(lengthHeader) > MAX_BODY_SIZE) {
     throw new WebhookError("body_too_large");
   }
-  const body = await req.text();
-  if (body.length > MAX_BODY_SIZE) throw new WebhookError("body_too_large");
+  const bytes = await readBoundedBody(req);
 
   const key = typeof secret === "string" ? Buffer.from(secret, "utf8") : Buffer.from(secret);
   const mac = createHmac("sha256", key);
   mac.update(`${ts}.`);
-  mac.update(body);
+  mac.update(bytes);
   const expected = mac.digest();
 
   let supplied: Buffer;
@@ -89,13 +115,14 @@ export async function verify(
   }
 
   if (opts.replayCache) {
-    const eventId = req.headers.get(HeaderEventID);
-    if (eventId && opts.replayCache.seen(eventId, skew * 2)) {
+    // Event IDs are not covered by the HMAC and may be changed or removed.
+    // Use the canonical authenticated timestamp and MAC instead.
+    if (opts.replayCache.seen(`${ts}.${expected.toString("hex")}`, skew * 2)) {
       throw new WebhookError("replay");
     }
   }
 
-  return body;
+  return bytes.toString("utf8");
 }
 
 /**
