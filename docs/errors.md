@@ -20,14 +20,14 @@ Conflict | Transient | Remote | Unknown`.
 import { Kind, ZeamError } from "@zeammoney/sdk";
 
 try {
-  await client.payments.createPayment(sess, body);
+  await biz.listAssociations(sess);
 } catch (err) {
   if (err instanceof ZeamError) {
     if (err.is(Kind.Auth)) {
       // session expired or revoked; call connectLogin / loginOTP again.
     }
-    if (err.code === "invalid_stellar_secret") {
-      // rotate the seed.
+    if (err.is(Kind.NotFound)) {
+      // resource does not exist.
     }
   }
   throw err;

@@ -10,8 +10,8 @@ step-by-step when you need to interleave partner logic.
 | --------------------- | ----------------------------------------------------------- |
 | `loginOTP`            | Business OTP login (request + verify + persist).            |
 | `registerApplication` | `POST /v1/application` with secure one-time-secret capture. |
-| `connectLogin`        | Full SEP-10 login using a stored Stellar seed.              |
-| `ConnectPayment`      | 9-step Connect off-ramp orchestration (class).              |
+| `connectLogin`        | Connect sign-in with application public key and secret.     |
+| `ConnectPayment`      | 8-step Connect off-ramp orchestration (class).              |
 | `rotateCredential`    | Rotate an application API key.                              |
 | `quoteThenExecute`    | Generic `quote → execute` pattern (generic).                |
 
@@ -19,19 +19,18 @@ step-by-step when you need to interleave partner logic.
 
 ```ts
 import { newConnectPayment } from "@zeammoney/sdk/recipes";
-import { mustAsset } from "@zeammoney/sdk/stellar";
 
 const flow = newConnectPayment(client, {
   businessSession,
-  applicationSeed: vaultStellarSeed,
+  applicationSecret: vaultApplicationSecret,
   applicationPublicKey: appPublicKey,
   associationId: "6f…e2",
   walletId: "wallet-id",
-  fundingAsset: mustAsset("USDC:GA…"),
+  fundingAsset: "USDC:GA…",
   beneficiaryId: "bb…12",
   method: "MOBILE_MONEY",
   countryISO: "ZW",
-  sendAmount: "100.00",
+  sendAmount: 100,
   connectSecret: vaultConnectSecret,
 });
 
@@ -43,16 +42,11 @@ Steps (all exposed as methods for manual driving):
 1. `listAssociations`
 2. `listWallets`
 3. `getBeneficiary`
-4. `signInConnect` (SEP-10)
+4. `signInConnect`
 5. `discoverConnectors`
 6. `selectConnector` + `getConnectQuote`
-7. `requiresStellarQuote()` + `getStellarQuote` (conditional)
-8. `executeStellarTransaction`
-9. `executeConnectPayment`
-
-The SDK applies the strict-receive decision rule upstream: if
-`fundingAsset !== connector.acceptedAsset` after normalisation, Step 7
-runs and Step 8 uses `STRICT_PATH_RECEIVE` with the returned `sendMax`.
+7. `executeStellarTransaction`
+8. `executeConnectPayment`
 
 ## `registerApplication` — secure capture callback
 
@@ -64,7 +58,7 @@ const result = await registerApplication(client, {
   payload: registrationPayload,
   async captureOneTimeSecrets(s) {
     await vault.put({
-      "stellar.secret": s.stellarSeed,
+      "application.secret": s.stellarSeed,
       "connect.secret": s.connectSecret,
       "api.key": s.apiKey,
       "webhook.secret": s.webhookSecret,

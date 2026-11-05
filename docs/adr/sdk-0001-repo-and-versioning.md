@@ -32,7 +32,7 @@ library the Go SDK provides, expressed in idiomatic TypeScript.
 - ESM-first, dual-published ESM+CJS via `tsup`.
 - Type declarations generated from TypeScript source; no hand-written
   `.d.ts`.
-- Subpath exports for every public module (`/auth`, `/stellar`,
+- Subpath exports for every public module (`/auth`,
   `/recipes`, `/webhook`, `/client/*`).
 
 ### Versioning

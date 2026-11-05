@@ -104,11 +104,12 @@ export function redactHeaders(headers: Headers): Record<string, string> {
 }
 
 /**
- * First eight characters of a bearer-like string, safe for correlation
- * in audit logs.
+ * Last eight characters of a bearer-like string, safe for correlation
+ * in audit logs. Uses the tail rather than the head because JWT headers
+ * are identical across tokens (always "eyJhbGci…").
  */
 export function fingerprint(token: string): string {
   if (!token) return "";
   if (token.length <= 8) return `len=${token.length}`;
-  return `${token.slice(0, 8)}…`;
+  return `…${token.slice(-8)}`;
 }

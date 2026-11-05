@@ -81,10 +81,9 @@ describe("redact", () => {
 });
 
 describe("fingerprint", () => {
-  it("keeps the first 8 chars of a long token", () => {
+  it("returns the last 8 chars of a long token prefixed with ellipsis", () => {
     const out = fingerprint("eyJhbGciOiJIUzI1NiJ9.short");
-    expect(out.startsWith("eyJhbGci")).toBe(true);
-    expect(out).not.toContain(".");
+    expect(out).toBe("…J9.short");
   });
 
   it("returns len= for short tokens", () => {

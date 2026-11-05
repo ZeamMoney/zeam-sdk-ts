@@ -1,8 +1,14 @@
-import { OTPFlow, SEP10Flow, MemoryStore, type TokenStore } from "./auth/index.js";
+import {
+  OTPFlow,
+  SEP10Flow,
+  MemoryStore,
+  type Refresher,
+  type Session,
+  type TokenStore,
+} from "./auth/index.js";
 import type { Environment } from "./environment.js";
 import { Environment as Env } from "./environment.js";
 import { IncompatibleGatewayError, ZeamError, kindFromStatus } from "./errors.js";
-import { newSigner, PublicNetworkPassphrase } from "./stellar/index.js";
 import { newFetcher, type ObservabilityHook } from "./transport/fetcher.js";
 import { unwrap } from "./transport/envelope.js";
 import { MIN_GATEWAY_VERSION, VERSION } from "./version.js";
@@ -26,10 +32,15 @@ export interface ClientOptions {
   skipVersionCheck?: boolean;
   /** Default per-call deadline in ms when no AbortSignal is supplied. */
   timeoutMs?: number;
-  /** Override the SEP-10 network passphrase. Defaults to Public. */
-  stellarNetwork?: string;
   /** Inject a custom fetch implementation — primarily for testing. */
   fetchImpl?: typeof fetch;
+  /**
+   * Refresher for transparent 401 retry. Pass an `OTPFlow` (Business track)
+   * or `SEP10Flow` (Connect track) — or any object implementing `Refresher`.
+   * When a call returns 401 the session is refreshed once and the request is
+   * retried automatically. Concurrent 401s coalesce into a single refresh.
+   */
+  refresher?: Refresher;
 }
 
 /**
@@ -43,6 +54,7 @@ export interface Doer {
   readonly verboseErrors: boolean;
   readonly timeoutMs: number;
   fetch(req: Request): Promise<Response>;
+  refreshSession?(session: Session): Promise<void>;
 }
 
 /**
@@ -54,11 +66,12 @@ export class Client implements Doer {
   readonly userAgent: string;
   readonly verboseErrors: boolean;
   readonly timeoutMs: number;
-  readonly stellarNetwork: string;
   readonly tokenStore: TokenStore;
 
   readonly #fetcher: (req: Request) => Promise<Response>;
   readonly #skipVersionCheck: boolean;
+  readonly #refresher: Refresher | undefined;
+  readonly #refreshPending = new Map<string, Promise<void>>();
 
   #otp?: OTPFlow;
   #sep10?: SEP10Flow;
@@ -84,9 +97,9 @@ export class Client implements Doer {
     this.userAgent = opts.userAgent ?? `@zeammoney/sdk/${VERSION}`;
     this.verboseErrors = opts.verboseErrors ?? false;
     this.timeoutMs = opts.timeoutMs ?? 30_000;
-    this.stellarNetwork = opts.stellarNetwork ?? PublicNetworkPassphrase;
     this.tokenStore = opts.tokenStore ?? new MemoryStore();
     this.#skipVersionCheck = opts.skipVersionCheck ?? false;
+    this.#refresher = opts.refresher;
 
     this.#fetcher = newFetcher({
       userAgent: this.userAgent,
@@ -99,19 +112,28 @@ export class Client implements Doer {
     return this.#fetcher(req);
   }
 
+  async refreshSession(session: Session): Promise<void> {
+    if (!this.#refresher) return;
+    const key = session.track;
+    const existing = this.#refreshPending.get(key);
+    if (existing) return existing;
+    const promise = Promise.resolve()
+      .then(() => this.#refresher!.refresh(session))
+      .then(() => {})
+      .finally(() => this.#refreshPending.delete(key));
+    this.#refreshPending.set(key, promise);
+    return promise;
+  }
+
   /** Business OTP flow helper. */
   get otp(): OTPFlow {
     this.#otp ??= new OTPFlow(this.baseURL, (req) => this.#fetcher(req));
     return this.#otp;
   }
 
-  /** Connect SEP-10 flow helper. */
+  /** Connect sign-in flow helper. */
   get sep10(): SEP10Flow {
-    this.#sep10 ??= new SEP10Flow(
-      this.baseURL,
-      (req) => this.#fetcher(req),
-      newSigner(this.stellarNetwork),
-    );
+    this.#sep10 ??= new SEP10Flow(this.baseURL, (req) => this.#fetcher(req));
     return this.#sep10;
   }
 
